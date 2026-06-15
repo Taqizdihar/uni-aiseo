@@ -102,6 +102,7 @@ export default function Auth({ view, navigate, onSubmit }: AuthProps) {
           'SEO Analyst': 'analyst',
           'Content Writer': 'writer',
           'Admin': 'admin',
+          'Administrator': 'admin',
         };
 
         const frontendRole = roleMap[loginData.user.role] || 'manager';

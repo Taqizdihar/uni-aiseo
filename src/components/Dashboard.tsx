@@ -58,18 +58,25 @@ export default function Dashboard({
   } | null;
 }) {
   const role = mockUser?.role || "manager";
-  const [metrics, setMetrics] = useState({ totalTasks: 0, totalTeamMembers: 0 });
+  const [metrics, setMetrics] = useState({ totalProjects: 0, totalTeam: 0, avgSeoScore: 0 });
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchMetrics = async () => {
+    const fetchDashboard = async () => {
       try {
-        const res = await api.get('/workspace/metrics');
+        const res = await api.get('/workspace/dashboard');
         setMetrics(res.data);
       } catch (error) {
-        console.error('Error fetching metrics', error);
+        console.error('Error fetching dashboard metrics', error);
+      }
+      try {
+        const res = await api.get('/notifications');
+        setRecentActivity(res.data);
+      } catch (error) {
+        console.error('Error fetching recent activity', error);
       }
     };
-    fetchMetrics();
+    fetchDashboard();
   }, []);
 
   const cards =
@@ -77,21 +84,21 @@ export default function Dashboard({
       manager: [
         {
           title: "Total Proyek Tim",
-          value: metrics.totalTasks.toString(),
+          value: metrics.totalProjects.toString(),
           icon: <Activity className="w-5 h-5 text-[var(--text-secondary)]" />,
-          change: "+2 bulan ini",
+          change: "Total tugas",
         },
         {
           title: "Total Anggota Tim",
-          value: metrics.totalTeamMembers.toString(),
+          value: metrics.totalTeam.toString(),
           icon: <Zap className="w-5 h-5 text-[var(--text-secondary)]" />,
           change: "Aktif",
         },
         {
           title: "Rata-rata Skor SEO Tim",
-          value: "82/100",
+          value: `${metrics.avgSeoScore}/100`,
           icon: <Target className="w-5 h-5 text-[var(--text-secondary)]" />,
-          change: "+5.4% peningkatan",
+          change: "Skor konten gabungan",
         },
       ],
       analyst: [
@@ -141,51 +148,25 @@ export default function Dashboard({
       manager: [
         {
           title: "Total Proyek Tim",
-          value: "12",
+          value: "0",
           icon: <Activity className="w-5 h-5 text-[var(--text-secondary)]" />,
-          change: "+2 bulan ini",
+          change: "Belum ada proyek",
         },
         {
           title: "Kredit AI Tim Digunakan",
-          value: "8,459",
+          value: "0",
           icon: <Zap className="w-5 h-5 text-[var(--text-secondary)]" />,
-          change: "75% dari batas",
+          change: "0% dari batas",
         },
         {
           title: "Rata-rata Skor SEO Tim",
-          value: "82/100",
+          value: "0/100",
           icon: <Target className="w-5 h-5 text-[var(--text-secondary)]" />,
-          change: "+5.4% peningkatan",
+          change: "Belum ada konten",
         },
       ],
     })[0];
 
-  const recentActivity = [
-    {
-      id: 1,
-      user: "Siti (SEO Analyst)",
-      action: "menyimpan keyword ke tugas 'Promo Musim Panas'",
-      time: "2 jam yang lalu",
-    },
-    {
-      id: 2,
-      user: "Budi (Content Writer)",
-      action: "mengirimkan artikel untuk persetujuan",
-      time: "4 jam yang lalu",
-    },
-    {
-      id: 3,
-      user: "Andi (SEO Manager)",
-      action: "membuat tugas baru 'Q3 Meta Tags'",
-      time: "1 hari yang lalu",
-    },
-    {
-      id: 4,
-      user: "Siti (SEO Analyst)",
-      action: "menyelesaikan tugas 'Desain Ulang Hero Beranda'",
-      time: "2 hari yang lalu",
-    },
-  ];
 
   const assignedTasks = {
     analyst: [
@@ -257,44 +238,50 @@ export default function Dashboard({
             Tren Kinerja Keseluruhan SEO (30 Hari)
           </h3>
           <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={performanceData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="var(--border-color)"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="day"
-                  stroke="var(--text-secondary)"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke="var(--text-secondary)"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "var(--bg-primary)",
-                    borderColor: "var(--border-color)",
-                    borderRadius: "8px",
-                  }}
-                  itemStyle={{ color: "var(--text-primary)" }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="score"
-                  stroke="#fad02c"
-                  strokeWidth={3}
-                  dot={{ r: 4, fill: "#fad02c", strokeWidth: 0 }}
-                  activeDot={{ r: 6, fill: "#e0b820" }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {metrics.totalProjects === 0 ? (
+              <div className="flex items-center justify-center h-full text-[var(--text-secondary)] text-center px-4">
+                Belum ada data analitik. Mulai buat tugas baru untuk melihat tren.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={performanceData}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="var(--border-color)"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="day"
+                    stroke="var(--text-secondary)"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="var(--text-secondary)"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "var(--bg-primary)",
+                      borderColor: "var(--border-color)",
+                      borderRadius: "8px",
+                    }}
+                    itemStyle={{ color: "var(--text-primary)" }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="score"
+                    stroke="#fad02c"
+                    strokeWidth={3}
+                    dot={{ r: 4, fill: "#fad02c", strokeWidth: 0 }}
+                    activeDot={{ r: 6, fill: "#e0b820" }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </motion.div>
 
@@ -416,58 +403,64 @@ export default function Dashboard({
             Keywords Dianalisis vs Dihasilkan
           </h3>
           <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={keywordData}
-                margin={{ top: 20, right: 0, left: -20, bottom: 0 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="var(--border-color)"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="week"
-                  stroke="var(--text-secondary)"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke="var(--text-secondary)"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip
-                  cursor={{ fill: "var(--bg-secondary)" }}
-                  contentStyle={{
-                    backgroundColor: "var(--bg-primary)",
-                    borderColor: "var(--border-color)",
-                    borderRadius: "8px",
-                  }}
-                />
-                <Legend
-                  iconType="circle"
-                  wrapperStyle={{ paddingTop: "20px" }}
-                />
-                <Bar
-                  dataKey="analyzed"
-                  name="Dianalisis"
-                  fill="#fad02c"
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={50}
-                />
-                <Bar
-                  dataKey="generated"
-                  name="Dihasilkan"
-                  fill="#222222"
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={50}
-                  className="dark:fill-[#555]"
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            {metrics.totalProjects === 0 ? (
+              <div className="flex items-center justify-center h-full text-[var(--text-secondary)] text-center px-4">
+                Belum ada data analitik. Mulai buat tugas baru untuk melihat tren.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={keywordData}
+                  margin={{ top: 20, right: 0, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="var(--border-color)"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="week"
+                    stroke="var(--text-secondary)"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="var(--text-secondary)"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "var(--bg-secondary)" }}
+                    contentStyle={{
+                      backgroundColor: "var(--bg-primary)",
+                      borderColor: "var(--border-color)",
+                      borderRadius: "8px",
+                    }}
+                  />
+                  <Legend
+                    iconType="circle"
+                    wrapperStyle={{ paddingTop: "20px" }}
+                  />
+                  <Bar
+                    dataKey="analyzed"
+                    name="Dianalisis"
+                    fill="#fad02c"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={50}
+                  />
+                  <Bar
+                    dataKey="generated"
+                    name="Dihasilkan"
+                    fill="#222222"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={50}
+                    className="dark:fill-[#555]"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </motion.div>
 
@@ -483,25 +476,31 @@ export default function Dashboard({
               Aktivitas Tim Terbaru
             </h3>
             <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-              {recentActivity.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex gap-3 border-b border-[var(--border-color)] pb-3 last:border-0 last:pb-0"
-                >
-                  <div className="w-8 h-8 rounded-full bg-brand-yellow/20 flex items-center justify-center text-brand-yellow font-bold shrink-0 text-sm">
-                    {activity.user.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium leading-tight mb-1 text-[var(--text-primary)]">
-                      <span className="font-bold">{activity.user}</span>{" "}
-                      {activity.action}
-                    </p>
-                    <p className="text-xs text-[var(--text-secondary)]">
-                      {activity.time}
-                    </p>
-                  </div>
+              {recentActivity.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-[var(--text-secondary)]">
+                  Belum ada aktivitas tim.
                 </div>
-              ))}
+              ) : (
+                recentActivity.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className="flex gap-3 border-b border-[var(--border-color)] pb-3 last:border-0 last:pb-0"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-brand-yellow/20 flex items-center justify-center text-brand-yellow font-bold shrink-0 text-sm">
+                      {activity.user_name ? activity.user_name.charAt(0).toUpperCase() : "S"}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium leading-tight mb-1 text-[var(--text-primary)]">
+                        <span className="font-bold">{activity.user_name || "Sistem"}</span>{" "}
+                        {activity.message}
+                      </p>
+                      <p className="text-xs text-[var(--text-secondary)]">
+                        {new Date(activity.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </motion.div>
         )}

@@ -33,6 +33,7 @@ export default function UserProfile({
   const email = mockUser?.email || ""; // Cannot be changed
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [profilePicUrl, setProfilePicUrl] = useState<string | null>(null);
   const [workspaceBgUrl, setWorkspaceBgUrl] = useState(
     mockUser?.workspaceBgUrl ||
       "https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2850&q=80",
@@ -40,10 +41,48 @@ export default function UserProfile({
   const [workspaceName, setWorkspaceName] = useState(
     mockUser?.workspaceName || "UMKM Maju Jaya",
   );
-  const [isEditingBg, setIsEditingBg] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+
+  React.useEffect(() => {
+    api.get('/users/profile').then(res => {
+      const data = res.data;
+      if (data.name) setName(data.name);
+      if (data.workspace_name) setWorkspaceName(data.workspace_name);
+      if (data.profile_picture) setProfilePicUrl(`http://localhost:5000${data.profile_picture}`);
+      if (data.background_image) setWorkspaceBgUrl(`http://localhost:5000${data.background_image}`);
+    }).catch(err => console.error(err));
+  }, []);
+
+  const handleImageUpload = async (file: File, endpoint: string) => {
+    const formData = new FormData();
+    if (endpoint === '/users/profile') {
+      formData.append('profile_picture', file);
+    } else {
+      formData.append('background_image', file);
+    }
+
+    try {
+      const res = await fetch(`http://localhost:5000/api${endpoint}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      const data = await res.json();
+      if (endpoint === '/users/profile') {
+        setProfilePicUrl(`http://localhost:5000${data.profile_picture}`);
+      } else {
+        setWorkspaceBgUrl(`http://localhost:5000${data.background_image}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Gagal mengupload gambar');
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,22 +98,30 @@ export default function UserProfile({
       }
     }
 
-    if (setMockUser) {
-      setMockUser((prev: any) => ({
-        ...prev,
-        name,
-        workspaceBgUrl,
-        workspaceName,
-      }));
+    try {
+      await api.put('/users/profile', { name });
+      if (mockUser?.role === 'manager') {
+        await api.put('/workspace/profile', { workspace_name: workspaceName });
+      }
+
+      if (setMockUser) {
+        setMockUser((prev: any) => ({
+          ...prev,
+          name,
+          workspaceName,
+        }));
+      }
+      setShowToast(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setIsChangingPassword(false);
+      setTimeout(() => {
+        setShowToast(false);
+      }, 3000);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert('Gagal menyimpan profil');
     }
-    setShowToast(true);
-    setCurrentPassword("");
-    setNewPassword("");
-    setIsChangingPassword(false);
-    setIsEditingBg(false);
-    setTimeout(() => {
-      setShowToast(false);
-    }, 3000);
   };
 
   const handleLeaveWorkspace = () => {
@@ -114,55 +161,60 @@ export default function UserProfile({
           >
             <div className="absolute inset-0 bg-black/40"></div>
             {mockUser?.role === "manager" && (
-              <button
-                type="button"
-                onClick={() => setIsEditingBg(!isEditingBg)}
+              <label
+                htmlFor="bg-upload"
                 className="absolute top-4 right-4 w-8 h-8 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-opacity backdrop-blur-md cursor-pointer border border-white/20"
                 title="Ganti Gambar Sampul"
               >
                 <Pencil className="w-4 h-4" />
-              </button>
+                <input 
+                  type="file" 
+                  id="bg-upload" 
+                  className="hidden" 
+                  accept="image/png, image/jpeg" 
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleImageUpload(file, '/workspace/profile');
+                  }} 
+                />
+              </label>
             )}
           </div>
 
           <div className="p-6 md:p-8 flex flex-col items-center w-full relative -mt-16">
-            <div className="relative group cursor-pointer mb-4">
-              <div className="w-32 h-32 rounded-full bg-brand-yellow text-brand-black flex items-center justify-center font-display font-bold text-4xl shadow-sm border-4 border-[var(--bg-primary)]">
-                {name.charAt(0).toUpperCase()}
-              </div>
+            <label htmlFor="profile-upload" className="relative group cursor-pointer mb-4">
+              {profilePicUrl ? (
+                <img src={profilePicUrl} alt="Profile" className="w-32 h-32 rounded-full object-cover shadow-sm border-4 border-[var(--bg-primary)]" />
+              ) : (
+                <div className="w-32 h-32 rounded-full bg-brand-yellow text-brand-black flex items-center justify-center font-display font-bold text-4xl shadow-sm border-4 border-[var(--bg-primary)]">
+                  {name.charAt(0).toUpperCase()}
+                </div>
+              )}
               <div className="absolute inset-0 rounded-full bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <Camera className="w-6 h-6 text-white mb-1" />
                 <span className="text-xs text-white font-medium">Ganti</span>
               </div>
-            </div>
+              <input 
+                type="file" 
+                id="profile-upload" 
+                className="hidden" 
+                accept="image/png, image/jpeg" 
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImageUpload(file, '/users/profile');
+                }} 
+              />
+            </label>
 
             <div className="flex space-x-2 mb-6">
-              <button
-                type="button"
+              <label
+                htmlFor="profile-upload"
                 className="flex items-center text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors bg-[var(--bg-secondary)] px-4 py-2 rounded-xl border border-[var(--border-color)] hover:border-brand-yellow/50 shadow-sm cursor-pointer hover:shadow"
               >
                 <Camera className="w-4 h-4 mr-2" />
                 Ganti Foto Profil
-              </button>
+              </label>
             </div>
-
-            {mockUser?.role === "manager" && isEditingBg && (
-              <div className="w-full mb-6 border-t border-[var(--border-color)] pt-4 animate-in fade-in slide-in-from-top-2">
-                <label className="block text-sm font-medium mb-2 text-left">
-                  URL Gambar Sampul Workspace
-                </label>
-                <input
-                  type="url"
-                  value={workspaceBgUrl}
-                  onChange={(e) => setWorkspaceBgUrl(e.target.value)}
-                  className="block w-full px-3 py-2 border border-[var(--border-color)] rounded-xl bg-[var(--bg-secondary)] focus:outline-none focus:ring-2 focus:ring-brand-yellow focus:border-transparent transition-shadow text-sm"
-                  placeholder="https://example.com/image.jpg"
-                />
-                <p className="text-xs text-[var(--text-secondary)] text-left mt-1">
-                  Gambar ini akan muncul di halaman Manajemen Tim.
-                </p>
-              </div>
-            )}
 
             <div>
               <h3 className="text-xl font-bold">{name || "User"}</h3>

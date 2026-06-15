@@ -60,6 +60,7 @@ export default function App() {
           'SEO Analyst': 'analyst',
           'Content Writer': 'writer',
           'Admin': 'admin',
+          'Administrator': 'admin',
         };
         setMockUser({
           name: userData.name,

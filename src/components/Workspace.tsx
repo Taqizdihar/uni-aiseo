@@ -59,52 +59,38 @@ export default function Workspace({
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState(
-    role === "admin"
-      ? [
-          {
-            id: 1,
-            text: "Sistem: Penggunaan API melebihi batas 80%.",
-            time: "5 menit yang lalu",
-            unread: true,
-            sender: "Sistem",
-          },
-          {
-            id: 2,
-            text: "Sistem: Pembaruan versi server berhasil di-deploy.",
-            time: "1 jam yang lalu",
-            unread: true,
-            sender: "Sistem",
-          },
-        ]
-      : [
-          {
-            id: 1,
-            text: "Tugas baru: Pembaruan UX Promo Musim Panas telah ditugaskan kepada Anda.",
-            time: "10 menit yang lalu",
-            unread: true,
-            sender: "Sistem",
-          },
-          {
-            id: 2,
-            text: "Budi (CW) mengirim draf untuk kampanye Tren AI SEO menunggu persetujuan Anda.",
-            time: "1 jam yang lalu",
-            unread: true,
-            sender: "Budi",
-          },
-          {
-            id: 3,
-            text: "Riset kata kunci untuk Desain Ulang Hero Beranda telah selesai.",
-            time: "2 jam yang lalu",
-            unread: true,
-            sender: "Sistem",
-          },
-        ],
-  );
-  const unreadCount = notifications.filter((n) => n.unread).length;
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-  const markAllRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, unread: false })));
+  useEffect(() => {
+    const fetchNotifs = async () => {
+      try {
+        const res = await fetch('http://localhost:5000/api/notifications', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setNotifications(data);
+        }
+      } catch (err) {
+        console.error('Error fetching notifications:', err);
+      }
+    };
+    fetchNotifs();
+  }, []);
+
+  const markAllRead = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/notifications/read-all', {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        setNotifications(notifications.map((n) => ({ ...n, is_read: true })));
+      }
+    } catch (err) {
+      console.error('Error marking notifications as read:', err);
+    }
   };
 
   const logoUrl =
@@ -339,31 +325,35 @@ export default function Workspace({
                     </div>
 
                     <div className="max-h-96 overflow-y-auto">
-                      {notifications.map((notif) => (
-                        <div
-                          key={notif.id}
-                          className={`p-4 border-b border-[var(--border-color)] last:border-b-0 hover:bg-[var(--bg-secondary)] transition-colors flex gap-3 ${notif.unread ? "bg-[#2a2a2c] dark:bg-[var(--bg-primary)]/40 relative" : ""}`}
-                        >
-                          {notif.unread && (
-                            <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-                          )}
-                          <div
-                            className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-brand-black ${notif.sender === "Sistem" ? "bg-gray-300" : "bg-brand-yellow"}`}
-                          >
-                            {notif.sender === "Sistem"
-                              ? "S"
-                              : notif.sender.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="text-sm text-[var(--text-primary)] leading-tight mb-1">
-                              {notif.text}
-                            </p>
-                            <p className="text-xs text-[var(--text-secondary)]">
-                              {notif.time}
-                            </p>
-                          </div>
+                      {notifications.length === 0 ? (
+                        <div className="p-8 text-center text-[var(--text-secondary)]">
+                          Anda sudah membaca semuanya!
                         </div>
-                      ))}
+                      ) : (
+                        notifications.map((notif) => (
+                          <div
+                            key={notif.id}
+                            className={`p-4 border-b border-[var(--border-color)] last:border-b-0 hover:bg-[var(--bg-secondary)] transition-colors flex gap-3 ${!notif.is_read ? "bg-[#2a2a2c] dark:bg-[var(--bg-primary)]/40 relative" : ""}`}
+                          >
+                            {!notif.is_read && (
+                              <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                            )}
+                            <div
+                              className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-brand-black bg-brand-yellow`}
+                            >
+                              {notif.user_name ? notif.user_name.charAt(0).toUpperCase() : "S"}
+                            </div>
+                            <div>
+                              <p className="text-sm text-[var(--text-primary)] leading-tight mb-1">
+                                {notif.message}
+                              </p>
+                              <p className="text-xs text-[var(--text-secondary)]">
+                                {new Date(notif.created_at).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </motion.div>
                 )}

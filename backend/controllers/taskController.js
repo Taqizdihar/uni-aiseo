@@ -88,19 +88,30 @@ exports.getArchive = async (req, res) => {
   }
 };
 
-exports.getMetrics = async (req, res) => {
+exports.getDashboardMetrics = async (req, res) => {
   try {
     const workspaceId = req.user.workspace_id;
     
-    const [taskRows] = await pool.query('SELECT COUNT(*) as count FROM Tasks WHERE workspace_id = ?', [workspaceId]);
-    const totalTasks = taskRows[0].count;
+    // Query 1: Total Tasks
+    const [taskRows] = await pool.query('SELECT COUNT(*) as count FROM tasks WHERE workspace_id = ?', [workspaceId]);
+    const totalProjects = taskRows[0].count;
 
-    const [teamRows] = await pool.query('SELECT COUNT(*) as count FROM Users WHERE workspace_id = ?', [workspaceId]);
+    // Query 2: Total Team (excluding SEO Manager)
+    const [teamRows] = await pool.query('SELECT COUNT(*) as count FROM users WHERE workspace_id = ? AND role != "SEO Manager"', [workspaceId]);
     const totalTeam = teamRows[0].count;
 
-    res.json({ totalTasks, totalTeamMembers: totalTeam });
+    // Query 3: Average SEO Score
+    const [scoreRows] = await pool.query(`
+      SELECT AVG(tc.seo_score) as avgScore 
+      FROM task_contents tc 
+      JOIN tasks t ON tc.task_id = t.id 
+      WHERE t.workspace_id = ?
+    `, [workspaceId]);
+    const avgSeoScore = scoreRows[0].avgScore ? Math.round(scoreRows[0].avgScore) : 0;
+
+    res.json({ totalProjects, totalTeam, avgSeoScore });
   } catch (error) {
-    console.error('Error fetching metrics:', error);
+    console.error('Error fetching dashboard metrics:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
