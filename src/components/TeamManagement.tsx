@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, UserPlus, Trash2, Send, CheckCircle2, ShieldBan, ShieldAlert, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import api from '../utils/api';
 
 interface TeamMember {
   id: string;
@@ -9,21 +10,32 @@ interface TeamMember {
   status: 'Active' | 'Pending';
 }
 
-const initialTeam: TeamMember[] = [
-  { id: '1', email: 'manager@umkmmajujaya.com', role: 'SEO Manager', status: 'Active' },
-  { id: '2', email: 'analyst@umkmmajujaya.com', role: 'SEO Analyst', status: 'Active' },
-  { id: '3', email: 'writer@umkmmajujaya.com', role: 'Content Writer', status: 'Pending' },
-];
-
 export default function TeamManagement({ mockUser }: { mockUser?: { role: string; name: string; workspaceName?: string; workspaceBgUrl?: string; email?: string } | null }) {
   const workspaceName = mockUser?.workspaceName || 'UMKM Maju Jaya';
   const workspaceBgUrl = mockUser?.workspaceBgUrl || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2850&q=80';
   
-  const [team, setTeam] = useState<TeamMember[]>(initialTeam);
+  const [team, setTeam] = useState<TeamMember[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('SEO Analyst');
   const [showToast, setShowToast] = useState<'invite' | 'resend' | 'revoke' | null>(null);
   const [memberToRevoke, setMemberToRevoke] = useState<{ id: string; email: string } | null>(null);
+
+  useEffect(() => {
+    const fetchTeam = async () => {
+      try {
+        const response = await api.get('/users/team');
+        setTeam(response.data.map((user: any) => ({
+          id: user.id.toString(),
+          email: user.email,
+          role: user.role,
+          status: user.status === 'Aktif' ? 'Active' : 'Pending'
+        })));
+      } catch (error) {
+        console.error('Error fetching team:', error);
+      }
+    };
+    fetchTeam();
+  }, []);
 
   // Mock visual carousel data
   const visualTeam = [
@@ -53,12 +65,18 @@ export default function TeamManagement({ mockUser }: { mockUser?: { role: string
     setTimeout(() => setShowToast(null), 3000);
   };
 
-  const confirmRevoke = () => {
+  const confirmRevoke = async () => {
     if (memberToRevoke) {
-      setTeam(team.filter(member => member.id !== memberToRevoke.id));
-      setMemberToRevoke(null);
-      setShowToast('revoke');
-      setTimeout(() => setShowToast(null), 3000);
+      try {
+        await api.delete(`/users/${memberToRevoke.id}`);
+        setTeam(team.filter(member => member.id !== memberToRevoke.id));
+        setMemberToRevoke(null);
+        setShowToast('revoke');
+        setTimeout(() => setShowToast(null), 3000);
+      } catch (error) {
+        console.error('Error removing user:', error);
+        alert('Gagal mencabut akses user.');
+      }
     }
   };
 

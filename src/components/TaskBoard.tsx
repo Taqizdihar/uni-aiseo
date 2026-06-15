@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Kanban,
@@ -13,6 +13,7 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
+import api from '../utils/api';
 
 interface Task {
   id: string;
@@ -24,44 +25,6 @@ interface Task {
   aiKeywords?: string[];
   aiScore?: number;
 }
-
-const initialTasks: Task[] = [
-  {
-    id: "1",
-    title: "Pembaruan UX Promo Musim Panas",
-    description: "Analisis konten visual untuk Landing Page promo musim panas.",
-    assignee: "Siti (SA)",
-    status: "To Do",
-  },
-  {
-    id: "2",
-    title: "Blog Post: Tren AI SEO",
-    description: "Buat draf konten dan optimalkan kepadatan Keyword.",
-    assignee: "Budi (CW)",
-    status: "In Progress",
-    aiKeywords: ["AI SEO", "Mesin Pencari", "NLP"],
-    aiScore: 85,
-  },
-  {
-    id: "3",
-    title: "Desain Ulang Hero Beranda",
-    description: "Evaluasi ulang batas rasio kontras warna text-to-image.",
-    assignee: "Siti (SA) & Budi (CW)",
-    status: "Waiting Approval",
-    aiKeywords: ["Aksesibilitas", "UI/UX", "Konversi"],
-    aiScore: 92,
-  },
-  {
-    id: "4",
-    title: "Pembuatan Q2 Meta Tags",
-    description:
-      "Hasilkan Meta Title dan Deskripsi berdasarkan analisis pesaing.",
-    assignee: "Citra (CW)",
-    status: "Done",
-    aiKeywords: ["Q2 Target", "Meta Deskripsi", "CTR"],
-    aiScore: 98,
-  },
-];
 
 const COLUMNS: Array<"To Do" | "In Progress" | "Waiting Approval" | "Done"> = [
   "To Do",
@@ -75,9 +38,27 @@ export default function TaskBoard({
 }: {
   mockUser?: { role: string; name: string } | null;
 }) {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const response = await api.get('/tasks');
+        setTasks(response.data.map((t: any) => ({
+          id: t.id.toString(),
+          title: t.title,
+          description: t.description,
+          assignee: `${t.analyst_name || 'Tidak Ada'} (SA) & ${t.writer_name || 'Tidak Ada'} (CW)`,
+          status: t.status,
+        })));
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+      }
+    };
+    fetchTasks();
+  }, []);
 
   // Detail Modal & Drag-and-Drop state
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -144,19 +125,24 @@ export default function TaskBoard({
     setDraggingOverColumn(null);
   };
 
-  const handleDrop = (e: React.DragEvent, column: string) => {
+  const handleDrop = async (e: React.DragEvent, column: string) => {
     e.preventDefault();
     setDraggingOverColumn(null);
     if (!draggedTaskId) return;
 
-    if (column === "To Do" || column === "In Progress") {
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === draggedTaskId
-            ? { ...t, status: column as Task["status"] }
-            : t,
-        ),
-      );
+    if (column === "To Do" || column === "In Progress" || column === "Done" || column === "Waiting Approval") {
+      try {
+        await api.put(`/tasks/${draggedTaskId}/status`, { status: column });
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.id === draggedTaskId
+              ? { ...t, status: column as Task["status"] }
+              : t,
+          ),
+        );
+      } catch (error) {
+        console.error('Error updating task status:', error);
+      }
     }
     setDraggedTaskId(null);
   };
@@ -225,7 +211,7 @@ export default function TaskBoard({
     setIsModalOpen(true);
   };
 
-  const handleCreateTask = (e: React.FormEvent) => {
+  const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingTaskId) {
       setTasks((prev) =>
@@ -242,14 +228,25 @@ export default function TaskBoard({
       );
       setEditingTaskId(null);
     } else {
-      const newTask: Task = {
-        id: Date.now().toString(),
-        title: taskName,
-        description: taskDesc,
-        assignee: `${analyst} & ${writer}`,
-        status: "To Do",
-      };
-      setTasks([newTask, ...tasks]);
+      try {
+        const response = await api.post('/tasks', {
+          title: taskName,
+          description: taskDesc,
+          analyst_id: null,
+          writer_id: null,
+        });
+        const t = response.data;
+        const newTask: Task = {
+          id: t.id.toString(),
+          title: t.title,
+          description: t.description,
+          assignee: `${t.analyst_name || 'Tidak Ada'} (SA) & ${t.writer_name || 'Tidak Ada'} (CW)`,
+          status: t.status,
+        };
+        setTasks([newTask, ...tasks]);
+      } catch (error) {
+        console.error('Error creating task:', error);
+      }
     }
     setIsModalOpen(false);
 

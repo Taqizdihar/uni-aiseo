@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import {
   LineChart,
@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   CircleDashed,
 } from "lucide-react";
+import api from '../utils/api';
 
 const performanceData = [
   { day: "1", score: 45 },
@@ -57,21 +58,34 @@ export default function Dashboard({
   } | null;
 }) {
   const role = mockUser?.role || "manager";
+  const [metrics, setMetrics] = useState({ totalTasks: 0, totalTeamMembers: 0 });
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const res = await api.get('/workspace/metrics');
+        setMetrics(res.data);
+      } catch (error) {
+        console.error('Error fetching metrics', error);
+      }
+    };
+    fetchMetrics();
+  }, []);
 
   const cards =
     {
       manager: [
         {
           title: "Total Proyek Tim",
-          value: "12",
+          value: metrics.totalTasks.toString(),
           icon: <Activity className="w-5 h-5 text-[var(--text-secondary)]" />,
           change: "+2 bulan ini",
         },
         {
-          title: "Kredit AI Tim Digunakan",
-          value: "8,459",
+          title: "Total Anggota Tim",
+          value: metrics.totalTeamMembers.toString(),
           icon: <Zap className="w-5 h-5 text-[var(--text-secondary)]" />,
-          change: "75% dari batas",
+          change: "Aktif",
         },
         {
           title: "Rata-rata Skor SEO Tim",

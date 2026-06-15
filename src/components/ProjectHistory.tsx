@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Eye, ArrowLeft, CheckCircle2, User, Activity, FileText, Download } from 'lucide-react';
+import api from '../utils/api';
 
 interface MockCampaign {
   id: string;
@@ -16,53 +17,35 @@ interface MockCampaign {
   metaDesc: string;
 }
 
-const initialCampaigns: MockCampaign[] = [
-  { 
-    id: '1', 
-    name: 'Desain Ulang Hero Beranda - Q3', 
-    completedDate: '2026-06-12', 
-    assignedWriter: 'Siti (SA)', 
-    assignedAnalyst: 'Andi (Analyst)',
-    finalScore: 98,
-    finalContent: `# Selamat Datang di Dunia Baru Kami\n\nJelajahi inovasi terkini dan desain memukau. Kami membawa performa dan keindahan ke tingkat selanjutnya...`,
-    targetKeyword: 'Desain Inovatif',
-    lsiKeywords: ['Performa', 'Keindahan UI', 'Revolusi Desain'],
-    metaTitle: 'Desain Inovatif: Transformasi Hero Beranda - Q3',
-    metaDesc: 'Kami membawakan pengalaman baru dengan desain memukau. Jelajahi sekarang untuk inovasi tanpa batas.'
-  },
-  { 
-    id: '2', 
-    name: 'Pembaruan UX Promo Musim Panas', 
-    completedDate: '2026-06-10', 
-    assignedWriter: 'Budi (CW)', 
-    assignedAnalyst: 'Citra (Analyst)',
-    finalScore: 92,
-    finalContent: `# Diskon Spesial Musim Panas\n\nPenawaran terbaik terbatas untuk musim ini! Jangan lewatkan kesempatan Anda mendapatkan produk favorit dengan harga miring.\n\n## Kategori Diskon 50%\n* Sandal Musim Panas\n* Kacamata Hitam\n* Topi Pantai\n\nSegera berbelanja sebelum kehabisan!`,
-    targetKeyword: 'Promo Musim Panas',
-    lsiKeywords: ['Diskon Spesial', 'Penawaran Terbatas', 'Harga Miring'],
-    metaTitle: 'Spesial: Promo Musim Panas Diskon hingga 50%',
-    metaDesc: 'Jangan lewatkan promo musim panas kami dengan diskon fantastis. Dapatkan produk impian sekarang!'
-  },
-  { 
-    id: '3', 
-    name: 'Blog Post: Gambaran Umum Tren AI SEO', 
-    completedDate: '2026-06-08', 
-    assignedWriter: 'Budi (CW)', 
-    assignedAnalyst: 'Citra (Analyst)',
-    finalScore: 89,
-    finalContent: `# Mengapa AI Mempengaruhi SEO di 2024\n\nDengan perkembangan teknologi, lanskap pencarian digital berubah. \n\n## Peran NLP\nNLP memungkinkan mesin pencari lebih memahami makna di balik query, membantu pengiriman konten yang lebih relevan. Ini merubah strategi SEO secara radikal...`,
-    targetKeyword: 'AI SEO Tren',
-    lsiKeywords: ['Mesin Pencari', 'NLP SEO', 'Optimasi AI'],
-    metaTitle: 'Tren AI SEO: Panduan Lengkap Perubahan Lanskap Pencarian',
-    metaDesc: 'Pelajari dampak revolusioner AI terhadap strategi SEO. Baca selengkapnya untuk mempertahankan peringkat dengan NLP.'
-  },
-];
-
 export default function WorkspaceArchive() {
-  const [campaigns] = useState<MockCampaign[]>(initialCampaigns);
+  const [campaigns, setCampaigns] = useState<MockCampaign[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   
   const [selectedCampaign, setSelectedCampaign] = useState<MockCampaign | null>(null);
+
+  useEffect(() => {
+    const fetchArchive = async () => {
+      try {
+        const response = await api.get('/tasks/archive');
+        setCampaigns(response.data.map((t: any) => ({
+          id: t.id.toString(),
+          name: t.title,
+          completedDate: t.updated_at ? t.updated_at.split('T')[0] : '2026-06-15',
+          assignedWriter: t.writer_name ? `${t.writer_name} (CW)` : 'Tidak Ada (CW)',
+          assignedAnalyst: t.analyst_name ? `${t.analyst_name} (SA)` : 'Tidak Ada (SA)',
+          finalScore: t.aiScore || 90,
+          finalContent: t.description || 'Tidak ada konten.',
+          targetKeyword: 'Target Keyword',
+          lsiKeywords: ['LSI 1', 'LSI 2'],
+          metaTitle: 'Meta Title',
+          metaDesc: 'Meta Description'
+        })));
+      } catch (error) {
+        console.error('Error fetching archive:', error);
+      }
+    };
+    fetchArchive();
+  }, []);
 
   const filteredCampaigns = campaigns.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
 

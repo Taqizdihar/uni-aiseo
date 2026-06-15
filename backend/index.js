@@ -19,7 +19,14 @@ app.use(express.json());
 
 // Routes
 const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
+const taskRoutes = require('./routes/taskRoutes');
+const workspaceRoutes = require('./routes/workspaceRoutes');
+
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/tasks', taskRoutes);
+app.use('/api/workspace', workspaceRoutes);
 
 app.get('/', (req, res) => {
   res.send('UNI-AISEO API is running');
