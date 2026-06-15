@@ -25,12 +25,14 @@ const userRoutes = require('./routes/userRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const workspaceRoutes = require('./routes/workspaceRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const visualRoutes = require('./routes/visualRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/workspace', workspaceRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/visual', visualRoutes);
 
 app.get('/', (req, res) => {
   res.send('UNI-AISEO API is running');
