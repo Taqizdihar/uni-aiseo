@@ -30,6 +30,7 @@ import WorkspaceManager from "./components/WorkspaceManager";
 import TeamManagement from "./components/TeamManagement";
 import TaskBoard from "./components/TaskBoard";
 import ContentApproval from "./components/ContentApproval";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>("dark");
@@ -201,50 +202,50 @@ export default function App() {
           >
             <Route
               path="/workspace/dashboard"
-              element={<Dashboard mockUser={mockUser} />}
+              element={<ProtectedRoute user={mockUser} allowedRoles={['manager', 'analyst', 'writer']}><Dashboard mockUser={mockUser} /></ProtectedRoute>}
             />
             <Route
               path="/workspace/task-board"
-              element={<TaskBoard mockUser={mockUser} />}
+              element={<ProtectedRoute user={mockUser} allowedRoles={['manager', 'analyst', 'writer']}><TaskBoard mockUser={mockUser} /></ProtectedRoute>}
             />
             <Route
               path="/workspace/visual-analyzer"
-              element={<AIVisualAnalyzer setIsLoading={setIsLoading} />}
+              element={<ProtectedRoute user={mockUser} allowedRoles={['manager', 'analyst']}><AIVisualAnalyzer setIsLoading={setIsLoading} /></ProtectedRoute>}
             />
             <Route
               path="/workspace/keyword-generator"
-              element={<AIKeywordGenerator setIsLoading={setIsLoading} />}
+              element={<ProtectedRoute user={mockUser} allowedRoles={['manager', 'analyst']}><AIKeywordGenerator setIsLoading={setIsLoading} /></ProtectedRoute>}
             />
             <Route
               path="/workspace/on-page-optimizer"
-              element={<OnPageSeoOptimizer setIsLoading={setIsLoading} />}
+              element={<ProtectedRoute user={mockUser} allowedRoles={['manager', 'writer']}><OnPageSeoOptimizer setIsLoading={setIsLoading} /></ProtectedRoute>}
             />
             <Route
               path="/workspace/meta-tag-generator"
-              element={<AIMetaTagGenerator setIsLoading={setIsLoading} />}
+              element={<ProtectedRoute user={mockUser} allowedRoles={['manager', 'writer']}><AIMetaTagGenerator setIsLoading={setIsLoading} /></ProtectedRoute>}
             />
             <Route
               path="/workspace/content-approval"
-              element={<ContentApproval />}
+              element={<ProtectedRoute user={mockUser} allowedRoles={['manager']}><ContentApproval /></ProtectedRoute>}
             />
-            <Route path="/workspace/archive" element={<WorkspaceArchive />} />
+            <Route path="/workspace/archive" element={<ProtectedRoute user={mockUser} allowedRoles={['manager']}><WorkspaceArchive /></ProtectedRoute>} />
             <Route
               path="/workspace/team"
-              element={<TeamManagement mockUser={mockUser} />}
+              element={<ProtectedRoute user={mockUser} allowedRoles={['manager']}><TeamManagement mockUser={mockUser} /></ProtectedRoute>}
             />
-            <Route path="/workspace/faqs" element={<FAQViewer />} />
+            <Route path="/workspace/faqs" element={<ProtectedRoute user={mockUser} allowedRoles={['manager', 'analyst', 'writer']}><FAQViewer /></ProtectedRoute>} />
 
             <Route
               path="/profile"
               element={
-                <UserProfile mockUser={mockUser} setMockUser={setMockUser} />
+                <ProtectedRoute user={mockUser} allowedRoles={['manager', 'analyst', 'writer', 'admin', 'Administrator']}><UserProfile mockUser={mockUser} setMockUser={setMockUser} /></ProtectedRoute>
               }
             />
 
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/manage-workspaces" element={<WorkspaceManager />} />
-            <Route path="/audit-trail" element={<AuditTrail />} />
-            <Route path="/manage-faqs" element={<FAQManager />} />
+            <Route path="/admin" element={<ProtectedRoute user={mockUser} allowedRoles={['admin', 'Administrator']}><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/manage-workspaces" element={<ProtectedRoute user={mockUser} allowedRoles={['admin', 'Administrator']}><WorkspaceManager /></ProtectedRoute>} />
+            <Route path="/audit-trail" element={<ProtectedRoute user={mockUser} allowedRoles={['admin', 'Administrator']}><AuditTrail /></ProtectedRoute>} />
+            <Route path="/manage-faqs" element={<ProtectedRoute user={mockUser} allowedRoles={['admin', 'Administrator']}><FAQManager /></ProtectedRoute>} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

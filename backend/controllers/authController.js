@@ -141,4 +141,47 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { register, login };
+/**
+ * POST /api/auth/change-password
+ * Changes the user's password (strictly verifying current password)
+ */
+const changePassword = async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: 'Kata sandi saat ini dan kata sandi baru wajib diisi.' });
+  }
+
+  try {
+    // Fetch user's current hashed password from database
+    const [users] = await pool.execute(
+      'SELECT password FROM users WHERE id = ?',
+      [req.user.id]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: 'Pengguna tidak ditemukan.' });
+    }
+
+    const user = users[0];
+
+    // Compare current password
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({ message: 'Kata sandi saat ini tidak cocok' });
+    }
+
+    // Hash and update with the new password
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await pool.execute(
+      'UPDATE users SET password = ? WHERE id = ?',
+      [hashedPassword, req.user.id]
+    );
+
+    return res.status(200).json({ message: 'Kata sandi berhasil diperbarui' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    return res.status(500).json({ message: 'Terjadi kesalahan server saat mengganti kata sandi.' });
+  }
+};
+
+module.exports = { register, login, changePassword };

@@ -12,6 +12,7 @@ import {
   Building,
   X,
 } from "lucide-react";
+import api from "../utils/api";
 
 interface UserProfileProps {
   mockUser: {
@@ -44,8 +45,20 @@ export default function UserProfile({
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isChangingPassword && newPassword) {
+      try {
+        await api.post('/auth/change-password', { currentPassword, newPassword });
+      } catch (error: any) {
+        console.error('Error changing password:', error);
+        const errorMsg = error.response?.data?.message || 'Gagal mengganti kata sandi.';
+        alert(errorMsg);
+        return;
+      }
+    }
+
     if (setMockUser) {
       setMockUser((prev: any) => ({
         ...prev,

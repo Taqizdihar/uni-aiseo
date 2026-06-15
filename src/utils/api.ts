@@ -11,7 +11,11 @@ const api = {
       },
     });
     if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`);
+      let data = null;
+      try { data = await res.json(); } catch (e) {}
+      const error = new Error(`HTTP error! status: ${res.status}`) as any;
+      error.response = { status: res.status, data };
+      throw error;
     }
     const data = await res.json();
     return { data };
@@ -28,7 +32,11 @@ const api = {
       body: JSON.stringify(body),
     });
     if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`);
+      let data = null;
+      try { data = await res.json(); } catch (e) {}
+      const error = new Error(`HTTP error! status: ${res.status}`) as any;
+      error.response = { status: res.status, data };
+      throw error;
     }
     const data = await res.json();
     return { data };
@@ -45,7 +53,11 @@ const api = {
       body: JSON.stringify(body),
     });
     if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`);
+      let data = null;
+      try { data = await res.json(); } catch (e) {}
+      const error = new Error(`HTTP error! status: ${res.status}`) as any;
+      error.response = { status: res.status, data };
+      throw error;
     }
     const data = await res.json();
     return { data };
@@ -61,7 +73,11 @@ const api = {
       },
     });
     if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`);
+      let data = null;
+      try { data = await res.json(); } catch (e) {}
+      const error = new Error(`HTTP error! status: ${res.status}`) as any;
+      error.response = { status: res.status, data };
+      throw error;
     }
     const data = await res.json();
     return { data };
