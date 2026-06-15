@@ -6,8 +6,9 @@ const { verifyToken, authorizeRoles } = require('../middleware/authMiddleware');
 router.use(verifyToken);
 
 router.get('/', authorizeRoles('SEO Manager', 'SEO Analyst', 'Content Writer', 'Administrator', 'admin'), taskController.getTasks);
-router.post('/', authorizeRoles('SEO Manager', 'SEO Analyst', 'Content Writer', 'Administrator', 'admin'), taskController.createTask);
-router.put('/:id/status', authorizeRoles('SEO Manager', 'SEO Analyst', 'Content Writer', 'Administrator', 'admin'), taskController.updateTaskStatus);
+router.post('/', authorizeRoles('SEO Manager'), taskController.createTask);
+router.put('/:id/status', authorizeRoles('SEO Manager', 'SEO Analyst', 'Content Writer'), taskController.updateTaskStatus);
+router.delete('/:id', authorizeRoles('SEO Manager'), taskController.deleteTask);
 router.get('/archive', authorizeRoles('SEO Manager', 'Administrator', 'admin'), taskController.getArchive);
 
 module.exports = router;

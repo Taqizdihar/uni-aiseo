@@ -7,10 +7,11 @@ exports.getTasks = async (req, res) => {
       SELECT t.*, 
              a.name as analyst_name, 
              w.name as writer_name 
-      FROM Tasks t
-      LEFT JOIN Users a ON t.analyst_id = a.id
-      LEFT JOIN Users w ON t.writer_id = w.id
+      FROM tasks t
+      LEFT JOIN users a ON t.analyst_id = a.id
+      LEFT JOIN users w ON t.writer_id = w.id
       WHERE t.workspace_id = ?
+      ORDER BY t.created_at DESC
     `;
     const [rows] = await pool.query(query, [workspaceId]);
     res.json(rows);
@@ -23,18 +24,34 @@ exports.getTasks = async (req, res) => {
 exports.createTask = async (req, res) => {
   try {
     const workspaceId = req.user.workspace_id;
+    const userId = req.user.id;
     const { title, description, analyst_id, writer_id } = req.body;
     
     const [result] = await pool.query(
-      'INSERT INTO Tasks (workspace_id, title, description, analyst_id, writer_id, status) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO tasks (workspace_id, title, description, analyst_id, writer_id, status) VALUES (?, ?, ?, ?, ?, ?)',
       [workspaceId, title, description, analyst_id || null, writer_id || null, 'To Do']
     );
 
+    // Insert notifications for assigned analyst and writer
+    const notifMessage = `Tugas baru '${title}' telah ditugaskan.`;
+    if (analyst_id) {
+      await pool.query(
+        'INSERT INTO notifications (workspace_id, user_id, message, is_read) VALUES (?, ?, ?, ?)',
+        [workspaceId, analyst_id, notifMessage, false]
+      );
+    }
+    if (writer_id) {
+      await pool.query(
+        'INSERT INTO notifications (workspace_id, user_id, message, is_read) VALUES (?, ?, ?, ?)',
+        [workspaceId, writer_id, notifMessage, false]
+      );
+    }
+
     const [newTask] = await pool.query(
       `SELECT t.*, a.name as analyst_name, w.name as writer_name 
-       FROM Tasks t
-       LEFT JOIN Users a ON t.analyst_id = a.id
-       LEFT JOIN Users w ON t.writer_id = w.id
+       FROM tasks t
+       LEFT JOIN users a ON t.analyst_id = a.id
+       LEFT JOIN users w ON t.writer_id = w.id
        WHERE t.id = ?`,
       [result.insertId]
     );
@@ -51,19 +68,76 @@ exports.updateTaskStatus = async (req, res) => {
     const workspaceId = req.user.workspace_id;
     const taskId = req.params.id;
     const { status } = req.body;
+    const userRole = req.user.role;
+
+    // Validate the target status value
+    const validStatuses = ['To Do', 'In Progress', 'Waiting Approval', 'Done'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Status tidak valid.' });
+    }
+
+    // Fetch current task to know its current status
+    const [taskRows] = await pool.query(
+      'SELECT status FROM tasks WHERE id = ? AND workspace_id = ?',
+      [taskId, workspaceId]
+    );
+    if (taskRows.length === 0) {
+      return res.status(404).json({ message: 'Tugas tidak ditemukan.' });
+    }
+    const currentStatus = taskRows[0].status;
+
+    // Role-based enforcement
+    if (userRole === 'Content Writer') {
+      return res.status(403).json({ message: 'Anda tidak memiliki izin untuk memindahkan tugas ini.' });
+    }
+
+    if (userRole === 'SEO Analyst') {
+      // Analyst can ONLY drag from 'To Do' to 'In Progress'
+      if (!(currentStatus === 'To Do' && status === 'In Progress')) {
+        return res.status(403).json({ message: 'Anda tidak memiliki izin untuk memindahkan tugas ini.' });
+      }
+    }
+
+    if (userRole === 'SEO Manager') {
+      // Manager cannot drag to 'Waiting Approval' or 'Done'
+      if (status === 'Waiting Approval' || status === 'Done') {
+        return res.status(403).json({ message: 'Status ini diperbarui otomatis melalui sistem Validasi AI dan Persetujuan Konten.' });
+      }
+    }
 
     const [result] = await pool.query(
-      'UPDATE Tasks SET status = ? WHERE id = ? AND workspace_id = ?',
+      'UPDATE tasks SET status = ? WHERE id = ? AND workspace_id = ?',
       [status, taskId, workspaceId]
     );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Task not found or unauthorized' });
+      return res.status(404).json({ message: 'Tugas tidak ditemukan atau tidak berwenang.' });
     }
 
-    res.json({ message: 'Task status updated' });
+    res.json({ message: 'Status tugas berhasil diperbarui.' });
   } catch (error) {
     console.error('Error updating task status:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+exports.deleteTask = async (req, res) => {
+  try {
+    const workspaceId = req.user.workspace_id;
+    const taskId = req.params.id;
+
+    const [result] = await pool.query(
+      'DELETE FROM tasks WHERE id = ? AND workspace_id = ?',
+      [taskId, workspaceId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Tugas tidak ditemukan.' });
+    }
+
+    res.json({ message: 'Tugas berhasil dihapus.' });
+  } catch (error) {
+    console.error('Error deleting task:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -75,9 +149,9 @@ exports.getArchive = async (req, res) => {
       SELECT t.*, 
              a.name as analyst_name, 
              w.name as writer_name 
-      FROM Tasks t
-      LEFT JOIN Users a ON t.analyst_id = a.id
-      LEFT JOIN Users w ON t.writer_id = w.id
+      FROM tasks t
+      LEFT JOIN users a ON t.analyst_id = a.id
+      LEFT JOIN users w ON t.writer_id = w.id
       WHERE t.workspace_id = ? AND t.status = 'Done'
     `;
     const [rows] = await pool.query(query, [workspaceId]);
