@@ -71,7 +71,7 @@ exports.updateTaskStatus = async (req, res) => {
 exports.getArchive = async (req, res) => {
   try {
     const workspaceId = req.user.workspace_id;
-    const query = \`
+    const query = `
       SELECT t.*, 
              a.name as analyst_name, 
              w.name as writer_name 
@@ -79,7 +79,7 @@ exports.getArchive = async (req, res) => {
       LEFT JOIN Users a ON t.analyst_id = a.id
       LEFT JOIN Users w ON t.writer_id = w.id
       WHERE t.workspace_id = ? AND t.status = 'Done'
-    \`;
+    `;
     const [rows] = await pool.query(query, [workspaceId]);
     res.json(rows);
   } catch (error) {

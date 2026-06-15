@@ -1,24 +1,71 @@
-import axios from 'axios';
+const BASE_URL = 'http://localhost:5000/api';
 
-const api = axios.create({
-  baseURL: 'http://localhost:5000/api', // Adjust base URL as needed
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Interceptor to automatically append the JWT token
-api.interceptors.request.use(
-  (config) => {
+const api = {
+  get: async (url: string) => {
     const token = localStorage.getItem('token');
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${BASE_URL}${url}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
     }
-    return config;
+    const data = await res.json();
+    return { data };
   },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+
+  post: async (url: string, body: any) => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${BASE_URL}${url}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    const data = await res.json();
+    return { data };
+  },
+
+  put: async (url: string, body: any) => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${BASE_URL}${url}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    const data = await res.json();
+    return { data };
+  },
+
+  delete: async (url: string) => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${BASE_URL}${url}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    const data = await res.json();
+    return { data };
+  },
+};
 
 export default api;
