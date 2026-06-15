@@ -1,0 +1,6 @@
+{
+  "name": "UNI-AISEO",
+  "description": "An AI-based Search Engine Optimization platform featuring seamless authentication, sleek dark-mode aesthetics, and simulated AI processing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
