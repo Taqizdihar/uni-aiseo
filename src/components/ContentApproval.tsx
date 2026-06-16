@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ClipboardCheck, CheckCircle2, XCircle, AlertTriangle, FileText, ArrowLeft, Send, ChevronDown } from 'lucide-react';
+import { ClipboardCheck, CheckCircle2, XCircle, AlertTriangle, FileText, Send, ChevronDown, Loader2, X } from 'lucide-react';
+import api from '../utils/api';
 
 interface ReviewTask {
   id: string;
@@ -13,70 +14,120 @@ interface ReviewTask {
   readability: string;
   density: string;
   aiSuggestion: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'Waiting Approval' | 'Done' | 'In Progress';
 }
 
-const mockTasks: ReviewTask[] = [
-  {
-    id: 'task-1',
-    title: 'Blog Post: Tren AI SEO di 2024',
-    targetKeyword: 'AI SEO Trends',
-    metaTitle: 'Tren AI SEO di 2024: Panduan Lengkap untuk Pemula',
-    metaDesc: 'Pelajari bagaimana AI mengubah cara kita melakukan SEO pada tahun 2024 dan apa yang harus Anda lakukan untuk beradaptasi.',
-    content: `# Panduan Lengkap Tren AI SEO di 2024\n\nArtificial Intelligence merevolusi cara kita mendekati Search Engine Optimization (SEO). Dari pembuatan konten otomatis hingga analitik prediktif, lanskap ini bergeser pada kecepatan yang belum pernah terjadi sebelumnya.\n\n## 1. Riset Keyword Otomatis\nAlat AI sekarang dapat menganalisis sejumlah besar data pencarian untuk mengidentifikasi keywords dengan konversi tinggi dan persaingan rendah dalam hitungan detik. Hal ini memungkinkan SEO Analyst untuk fokus pada strategi daripada mengumpulkan data secara manual.\n\n## 2. Keterbacaan dan Optimasi Konten\nMesin pencari semakin memprioritaskan pengalaman pengguna. AI content optimizer memastikan bahwa tulisan Anda sesuai dengan tingkat membaca ideal dari target audiens Anda, memanfaatkan Natural Language Processing (NLP) untuk menyarankan perbaikan struktural dan semantic LSI keywords.\n\n## 3. Kemampuan Pencarian Visual\nDengan bangkitnya pencarian visual, sangat penting untuk memastikan gambar dioptimalkan dengan alt-text yang benar dan rasio kontras yang tinggi. AI visual analyzer modern dapat mengaudit seluruh properti web untuk inklusivitas visual.\n\nSebagai kesimpulan, mengintegrasikan AI ke dalam alur kerja SEO Anda bukan lagi tentang kemewahan opsional — hal ini adalah persyaratan mendasar untuk tetap kompetitif di pasar digital saat ini.`,
-    seoScore: 92,
-    readability: 'Kelas 8',
-    density: '1.8%',
-    aiSuggestion: 'Pertimbangkan untuk menambahkan satu lagi LSI keyword terkait "Strategi Konten" pada paragraf terakhir.',
-    status: 'pending',
-  },
-  {
-    id: 'task-2',
-    title: 'Landing Page: Promo Musim Panas',
-    targetKeyword: 'Promo Musim Panas 2024',
-    metaTitle: 'Diskon Terbesar Promo Musim Panas 2024 - Dapatkan Sekarang!',
-    metaDesc: 'Nikmati penawaran eksklusif dan diskon hingga 50% selama Promo Musim Panas 2024. Jangan sampai kehabisan!',
-    content: `# Promo Musim Panas Telah Tiba!\n\nPersiapkan diri Anda untuk diskon besar-besaran di semua kategori produk favorit Anda.\n\n## Diskon Hingga 50%\nDapatkan potongan harga dari pakaian musim panas, aksesori, hingga peralatan perlengkapan luar ruangan.\n\nCepat, penawaran ini hanya berlaku hingga akhir bulan!`,
-    seoScore: 88,
-    readability: 'Kelas 6',
-    density: '2.1%',
-    aiSuggestion: 'Tambahkan ajakan bertindak (CTA) sekunder di bagian bawah konten untuk meningkatkan konversi peluang.',
-    status: 'pending',
-  }
-];
-
 export default function ContentApproval() {
-  const [tasks, setTasks] = useState<ReviewTask[]>(mockTasks);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(mockTasks[0].id);
+  const [tasks, setTasks] = useState<ReviewTask[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
+  
+  // Rejection Modal State
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectionNote, setRejectionNote] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Toast
   const [showToast, setShowToast] = useState(false);
-  const [lastActionStatus, setLastActionStatus] = useState<'approved' | 'rejected'>('approved');
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
-  const selectedTask = tasks.find(t => t.id === selectedTaskId);
-  const pendingTasks = tasks.filter(t => t.status === 'pending');
-
-  const handleTaskAction = (action: 'approved' | 'rejected') => {
-    if (!selectedTask) return;
-    
-    setLastActionStatus(action);
-    setTasks(prev => prev.map(t => t.id === selectedTaskId ? { ...t, status: action } : t));
-    
+  const notify = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToastMsg(msg);
+    setToastType(type);
     setShowToast(true);
-    setTimeout(() => {
-      setShowToast(false);
-      const remainingPending = tasks.filter(t => t.id !== selectedTaskId && t.status === 'pending');
-      setSelectedTaskId(remainingPending.length > 0 ? remainingPending[0].id : null);
-    }, 2000);
+    setTimeout(() => setShowToast(false), 4000);
   };
 
-  if (pendingTasks.length === 0) {
+  const fetchPendingApprovals = async () => {
+    setIsLoading(true);
+    try {
+      const res = await api.get('/approval/pending');
+      setTasks(res.data);
+      if (res.data.length > 0) {
+        setSelectedTaskId(res.data[0].id);
+      } else {
+        setSelectedTaskId(null);
+      }
+    } catch (err) {
+      console.error('Error fetching approvals:', err);
+      notify('Gagal memuat tugas yang menunggu persetujuan', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingApprovals();
+  }, []);
+
+  const selectedTask = tasks.find(t => t.id === selectedTaskId);
+
+  const handleApprove = async () => {
+    if (!selectedTask) return;
+    setIsSubmitting(true);
+    
+    try {
+      await api.put(`/approval/${selectedTask.id}/approve`);
+      
+      notify('Konten disetujui dan tugas ditandai selesai!');
+      
+      // Remove from list
+      const remaining = tasks.filter(t => t.id !== selectedTask.id);
+      setTasks(remaining);
+      setSelectedTaskId(remaining.length > 0 ? remaining[0].id : null);
+    } catch (err: any) {
+      console.error('Error approving task:', err);
+      notify(err.response?.data?.message || 'Gagal menyetujui tugas', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRejectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTask || !rejectionNote.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      await api.put(`/approval/${selectedTask.id}/reject`, {
+        rejection_note: rejectionNote.trim()
+      });
+      
+      notify('Konten ditolak. Permintaan revisi dikirim ke Writer.');
+      
+      // Remove from list
+      const remaining = tasks.filter(t => t.id !== selectedTask.id);
+      setTasks(remaining);
+      setSelectedTaskId(remaining.length > 0 ? remaining[0].id : null);
+      setShowRejectModal(false);
+      setRejectionNote('');
+    } catch (err: any) {
+      console.error('Error rejecting task:', err);
+      notify(err.response?.data?.message || 'Gagal menolak tugas', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-brand-yellow" />
+      </div>
+    );
+  }
+
+  if (tasks.length === 0) {
     return (
       <div className="space-y-6 h-full flex flex-col items-center justify-center">
-        <div className="w-16 h-16 rounded-full bg-green-500/10 text-green-500 flex items-center justify-center mb-4">
-          <CheckCircle2 className="w-8 h-8" />
+        <div className="w-20 h-20 rounded-full bg-green-500/10 text-green-500 flex items-center justify-center mb-4">
+          <CheckCircle2 className="w-10 h-10" />
         </div>
-        <h2 className="text-2xl font-display font-bold mb-2 text-center">Sudah Selesai Semua!</h2>
-        <p className="text-[var(--text-secondary)] text-center">Tidak ada lagi draf konten yang menunggu persetujuan.</p>
+        <h2 className="text-2xl font-display font-bold mb-2 text-center">Hore! Tidak ada draf yang menunggu persetujuan saat ini.</h2>
+        <p className="text-[var(--text-secondary)] text-center">Tim konten Anda sedang bekerja atau semua draf telah disetujui.</p>
       </div>
     );
   }
@@ -95,24 +146,24 @@ export default function ContentApproval() {
         <div className="relative">
           <button 
             onClick={() => setShowDropdown(!showDropdown)}
-            className="flex items-center justify-between w-full sm:w-64 px-4 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-left hover:border-brand-yellow/50 transition-colors"
+            className="flex items-center justify-between w-full sm:w-64 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-left hover:border-brand-yellow/50 transition-colors"
           >
-            <span className="truncate mr-2">
+            <span className="truncate mr-2 font-medium">
               {selectedTask ? selectedTask.title : 'Pilih Tugas untuk Ditinjau'}
             </span>
-            <ChevronDown className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
+            <ChevronDown className="w-5 h-5 text-[var(--text-secondary)] shrink-0" />
           </button>
           
           {showDropdown && (
             <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl shadow-xl overflow-hidden max-h-60 overflow-y-auto">
-              {pendingTasks.map((task) => (
+              {tasks.map((task) => (
                 <div 
                   key={task.id}
                   onClick={() => {
                     setSelectedTaskId(task.id);
                     setShowDropdown(false);
                   }}
-                  className={`px-4 py-3 cursor-pointer hover:bg-[var(--bg-secondary)] transition-colors border-b border-[var(--border-color)] last:border-0 ${selectedTaskId === task.id ? 'bg-[var(--bg-secondary)] border-l-2 border-l-brand-yellow' : ''}`}
+                  className={`px-4 py-3 cursor-pointer hover:bg-[var(--bg-secondary)] transition-colors border-b border-[var(--border-color)] last:border-0 ${selectedTaskId === task.id ? 'bg-[var(--bg-secondary)] border-l-4 border-l-brand-yellow' : ''}`}
                 >
                   <div className="text-sm font-semibold truncate">{task.title}</div>
                   <div className="text-xs text-[var(--text-secondary)] mt-1 flex items-center">
@@ -139,7 +190,7 @@ export default function ContentApproval() {
              <div className="p-4 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/30 flex flex-wrap items-center justify-between gap-4 shrink-0">
                <div className="flex items-center space-x-2">
                   <FileText className="w-5 h-5 text-[var(--text-secondary)]" />
-                  <h3 className="font-bold">Draf: {selectedTask.title}</h3>
+                  <h3 className="font-bold truncate max-w-sm">Draf: {selectedTask.title}</h3>
                </div>
                <span className="px-3 py-1 bg-purple-500/10 text-purple-500 border border-purple-500/20 rounded-full text-xs font-bold whitespace-nowrap">
                  Waiting Approval
@@ -165,7 +216,7 @@ export default function ContentApproval() {
                 </div>
 
                 <div className="prose prose-invert max-w-none">
-                  <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+                  <div className="text-[var(--text-primary)] whitespace-pre-wrap leading-relaxed text-base">
                      {selectedTask.content}
                   </div>
                 </div>
@@ -193,8 +244,14 @@ export default function ContentApproval() {
                      <CheckCircle2 className="w-24 h-24 text-green-500" />
                    </div>
                    <div className="relative z-10">
-                     <div className="text-4xl font-display font-bold text-green-500 mb-1">{selectedTask.seoScore}/100</div>
-                     <div className="text-sm font-medium text-[var(--text-secondary)]">Skor SEO Bagus Sekali</div>
+                     <div className={`text-4xl font-display font-bold mb-1 ${
+                       selectedTask.seoScore >= 80 ? 'text-green-500' :
+                       selectedTask.seoScore >= 60 ? 'text-yellow-500' :
+                       'text-red-500'
+                     }`}>
+                       {selectedTask.seoScore}/100
+                     </div>
+                     <div className="text-sm font-medium text-[var(--text-secondary)]">Skor SEO Keseluruhan</div>
                    </div>
                 </div>
 
@@ -203,13 +260,10 @@ export default function ContentApproval() {
                    <div className="p-4 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl">
                       <div className="flex justify-between items-center mb-2">
                          <span className="text-sm font-medium text-[var(--text-secondary)]">Kepadatan Keyword</span>
-                         <span className="text-sm font-bold text-green-500">{selectedTask.density} (Optimal)</span>
+                         <span className="text-sm font-bold text-green-500">{selectedTask.density}</span>
                       </div>
                       <div className="w-full bg-[var(--bg-primary)] rounded-full h-1.5">
                          <div className="bg-green-500 h-full rounded-full" style={{ width: '60%' }} />
-                      </div>
-                      <div className="mt-2 text-xs text-[var(--text-secondary)]">
-                        Target keyword: "{selectedTask.targetKeyword}"
                       </div>
                    </div>
 
@@ -221,9 +275,6 @@ export default function ContentApproval() {
                       <div className="w-full bg-[var(--bg-primary)] rounded-full h-1.5">
                          <div className="bg-blue-500 h-full rounded-full" style={{ width: '85%' }} />
                       </div>
-                      <div className="mt-2 text-xs text-[var(--text-secondary)]">
-                        Sesuai dengan target audiens.
-                      </div>
                    </div>
                 </div>
 
@@ -231,7 +282,8 @@ export default function ContentApproval() {
                 <div className="p-4 bg-brand-yellow/10 border border-brand-yellow/30 rounded-xl flex items-start">
                    <AlertTriangle className="w-5 h-5 text-brand-yellow shrink-0 mr-3 mt-0.5" />
                    <p className="text-sm text-[var(--text-secondary)]">
-                     <strong className="text-[var(--text-primary)]">Saran Minor:</strong> {selectedTask.aiSuggestion}
+                     <strong className="text-[var(--text-primary)] block mb-1">Catatan Sistem:</strong> 
+                     {selectedTask.aiSuggestion}
                    </p>
                 </div>
              </div>
@@ -239,15 +291,17 @@ export default function ContentApproval() {
              {/* Action Bar */}
              <div className="p-6 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]/50 shrink-0 space-y-3">
                 <button
-                  onClick={() => handleTaskAction('approved')}
-                  className="w-full flex items-center justify-center px-6 py-3.5 bg-brand-yellow text-brand-black font-semibold rounded-xl hover:bg-brand-yellow-hover transition-colors shadow-sm"
+                  onClick={handleApprove}
+                  disabled={isSubmitting}
+                  className="w-full flex items-center justify-center px-6 py-3.5 bg-brand-yellow text-brand-black font-semibold rounded-xl hover:bg-brand-yellow-hover transition-colors shadow-sm disabled:opacity-50"
                 >
-                  <CheckCircle2 className="w-5 h-5 mr-2" />
+                  {isSubmitting ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <CheckCircle2 className="w-5 h-5 mr-2" />}
                   Setujui & Tandai Selesai
                 </button>
                 <button
-                  onClick={() => handleTaskAction('rejected')}
-                  className="w-full flex items-center justify-center px-6 py-3.5 bg-[var(--bg-primary)] text-red-500 font-semibold rounded-xl border border-[var(--border-color)] hover:border-red-500 hover:bg-red-500/10 transition-colors shadow-sm"
+                  onClick={() => setShowRejectModal(true)}
+                  disabled={isSubmitting}
+                  className="w-full flex items-center justify-center px-6 py-3.5 bg-[var(--bg-primary)] text-red-500 font-semibold rounded-xl border border-[var(--border-color)] hover:border-red-500 hover:bg-red-500/10 transition-colors shadow-sm disabled:opacity-50"
                 >
                   <XCircle className="w-5 h-5 mr-2" />
                   Tolak & Minta Revisi
@@ -257,24 +311,101 @@ export default function ContentApproval() {
         </div>
       )}
 
+      {/* Rejection Modal */}
+      <AnimatePresence>
+        {showRejectModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => !isSubmitting && setShowRejectModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] shadow-2xl overflow-hidden"
+            >
+              <div className="p-6 border-b border-[var(--border-color)] flex justify-between items-center bg-[var(--bg-secondary)]/50">
+                <h3 className="text-xl font-bold flex items-center text-red-500">
+                  <XCircle className="w-6 h-6 mr-2" />
+                  Minta Revisi
+                </h3>
+                <button 
+                  onClick={() => !isSubmitting && setShowRejectModal(false)}
+                  className="p-2 hover:bg-[var(--bg-primary)] rounded-full transition-colors text-[var(--text-secondary)]"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleRejectSubmit}>
+                <div className="p-6">
+                  <p className="text-[var(--text-secondary)] mb-4 text-sm">
+                    Draf ini akan dikembalikan ke status "In Progress". Penulis akan menerima notifikasi beserta catatan revisi Anda.
+                  </p>
+                  
+                  <label className="block text-sm font-semibold mb-2 text-[var(--text-primary)]">
+                    Catatan Revisi / Alasan Penolakan
+                  </label>
+                  <textarea
+                    required
+                    autoFocus
+                    value={rejectionNote}
+                    onChange={(e) => setRejectionNote(e.target.value)}
+                    className="w-full p-4 border border-[var(--border-color)] rounded-xl bg-[var(--bg-secondary)] focus:outline-none focus:ring-2 focus:ring-red-500 text-[var(--text-primary)] resize-none min-h-[120px]"
+                    placeholder="Masukkan alasan penolakan atau instruksi revisi untuk Content Writer..."
+                  />
+                </div>
+
+                <div className="p-6 pt-0 flex flex-col-reverse sm:flex-row justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowRejectModal(false)}
+                    disabled={isSubmitting}
+                    className="px-6 py-3 font-semibold rounded-xl border border-[var(--border-color)] hover:bg-[var(--bg-secondary)] transition-colors text-[var(--text-primary)]"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!rejectionNote.trim() || isSubmitting}
+                    className="px-6 py-3 font-semibold rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center justify-center disabled:opacity-50"
+                  >
+                    {isSubmitting ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Send className="w-5 h-5 mr-2" />}
+                    Kirim Revisi
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Toast Notification */}
       <AnimatePresence>
-         {showToast && (
-           <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
-             <div className={`border rounded-xl px-4 py-3 flex items-center shadow-lg backdrop-blur-md ${
-                lastActionStatus === 'approved' 
-                  ? 'bg-green-500/10 border-green-500/20 text-green-500' 
-                  : 'bg-red-500/10 border-red-500/20 text-red-500'
-             }`}>
-               {lastActionStatus === 'approved' ? <CheckCircle2 className="w-5 h-5 mr-2" /> : <Send className="w-5 h-5 mr-2" />}
-               <span className="font-medium text-sm">
-                 {lastActionStatus === 'approved' ? 'Konten disetujui dan tugas ditandai selesai!' : 'Konten ditolak. Permintaan revisi dikirim.'}
-               </span>
-             </div>
-           </div>
-         )}
+        {showToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className={`fixed bottom-6 right-6 px-6 py-4 rounded-xl shadow-lg flex items-center space-x-3 z-50 ${
+              toastType === 'success'
+                ? 'bg-green-500 text-white'
+                : 'bg-red-500/90 text-white border border-red-400'
+            }`}
+          >
+            {toastType === 'success' ? (
+              <CheckCircle2 className="w-6 h-6" />
+            ) : (
+              <AlertTriangle className="w-6 h-6" />
+            )}
+            <span className="font-medium">{toastMsg}</span>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
 }
-

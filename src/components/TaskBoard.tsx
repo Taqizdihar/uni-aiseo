@@ -27,6 +27,7 @@ interface TaskData {
   analyst_name: string | null;
   writer_name: string | null;
   created_at: string;
+  rejection_note?: string | null;
 }
 
 interface TeamMember {
@@ -348,6 +349,12 @@ export default function TaskBoard({
                             {task.title}
                           </h4>
                         </div>
+                        {task.rejection_note && (
+                          <div className="mb-3 px-2 py-1 bg-red-500/10 border border-red-500/20 text-red-500 rounded text-xs flex items-center">
+                            <AlertCircle className="w-3 h-3 mr-1 shrink-0" />
+                            <span className="truncate" title={task.rejection_note}>Revisi: {task.rejection_note}</span>
+                          </div>
+                        )}
                         <p className="text-xs text-[var(--text-secondary)] mb-4 line-clamp-2 leading-relaxed">
                           {task.description}
                         </p>
