@@ -1,263 +1,277 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Eye, ArrowLeft, CheckCircle2, User, Activity, FileText, Download } from 'lucide-react';
+import { Search, History, Calendar, Star, FileText, X, LayoutTemplate, MessageSquare, ExternalLink, Link2, Download, AlertCircle, Loader2 } from 'lucide-react';
 import api from '../utils/api';
 
-interface MockCampaign {
+interface ArchiveData {
   id: string;
-  name: string;
-  completedDate: string;
-  assignedWriter: string;
-  assignedAnalyst: string;
-  finalScore: number;
-  finalContent: string;
-  targetKeyword: string;
-  lsiKeywords: string[];
-  metaTitle: string;
-  metaDesc: string;
+  title: string;
+  description: string;
+  analyst_name: string;
+  writer_name: string;
+  focus_keyword: string;
+  seo_score: number;
+  meta_title: string;
+  meta_description: string;
+  content_draft: string;
+  readability_level: string;
+  feedback: string[];
+  completed_at: string;
 }
 
-export default function WorkspaceArchive() {
-  const [campaigns, setCampaigns] = useState<MockCampaign[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+export default function ProjectHistory() {
+  const [archives, setArchives] = useState<ArchiveData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
   
-  const [selectedCampaign, setSelectedCampaign] = useState<MockCampaign | null>(null);
+  // Modal states
+  const [selectedProject, setSelectedProject] = useState<ArchiveData | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchArchive = async () => {
       try {
-        const response = await api.get('/tasks/archive');
-        setCampaigns(response.data.map((t: any) => ({
-          id: t.id.toString(),
-          name: t.title,
-          completedDate: t.updated_at ? t.updated_at.split('T')[0] : '2026-06-15',
-          assignedWriter: t.writer_name ? `${t.writer_name} (CW)` : 'Tidak Ada (CW)',
-          assignedAnalyst: t.analyst_name ? `${t.analyst_name} (SA)` : 'Tidak Ada (SA)',
-          finalScore: t.aiScore || 90,
-          finalContent: t.description || 'Tidak ada konten.',
-          targetKeyword: 'Target Keyword',
-          lsiKeywords: ['LSI 1', 'LSI 2'],
-          metaTitle: 'Meta Title',
-          metaDesc: 'Meta Description'
-        })));
-      } catch (error) {
-        console.error('Error fetching archive:', error);
+        const res = await api.get('/archive');
+        setArchives(res.data);
+      } catch (err) {
+        console.error('Error fetching archive:', err);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchArchive();
   }, []);
 
-  const filteredCampaigns = campaigns.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredArchives = archives.filter(p => 
+    p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  if (selectedCampaign) {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+
+  const openReport = (project: ArchiveData) => {
+    setSelectedProject(project);
+    setIsModalOpen(true);
+  };
+
+  if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center space-x-4 mb-6">
-          <button 
-            onClick={() => setSelectedCampaign(null)}
-            className="p-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-secondary)] hover:text-brand-yellow hover:border-brand-yellow transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h2 className="text-2xl font-display font-bold flex items-center">
-              <CheckCircle2 className="w-6 h-6 mr-2 text-green-500" />
-              {selectedCampaign.name}
-            </h2>
-            <div className="flex items-center text-[var(--text-secondary)] text-sm mt-1">
-              <span>Disetujui & Diarsipkan pada {selectedCampaign.completedDate}</span>
-            </div>
-          </div>
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-[var(--bg-primary)] p-6 md:p-8 rounded-2xl border border-[var(--border-color)] shadow-sm space-y-8"
-        >
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-[var(--border-color)]">
-              <div className="flex flex-col sm:flex-row gap-6">
-                 <div>
-                   <h3 className="text-sm uppercase tracking-wider font-bold mb-1 flex items-center text-[var(--text-secondary)]">
-                     <User className="w-4 h-4 mr-2" />
-                     Writer yang Ditugaskan
-                   </h3>
-                   <p className="text-[var(--text-primary)] font-medium">{selectedCampaign.assignedWriter}</p>
-                 </div>
-                 <div>
-                   <h3 className="text-sm uppercase tracking-wider font-bold mb-1 flex items-center text-[var(--text-secondary)]">
-                     <User className="w-4 h-4 mr-2" />
-                     Analyst yang Ditugaskan
-                   </h3>
-                   <p className="text-[var(--text-primary)] font-medium">{selectedCampaign.assignedAnalyst}</p>
-                 </div>
-              </div>
-              <div className="text-right sm:text-left">
-                <h3 className="text-sm uppercase tracking-wider font-bold mb-1 flex items-center justify-end sm:justify-start text-[var(--text-secondary)]">
-                  <Activity className="w-4 h-4 mr-2 text-green-500" />
-                  Skor SEO Final
-                </h3>
-                <div className="flex items-center justify-end sm:justify-start gap-3">
-                  <div className="w-32 bg-[var(--bg-secondary)] rounded-full h-2">
-                     <div className="bg-green-500 h-full rounded-full" style={{ width: `${selectedCampaign.finalScore}%` }} />
-                  </div>
-                  <span className="text-[var(--text-primary)] font-bold text-green-500">{selectedCampaign.finalScore}/100</span>
-                </div>
-              </div>
-           </div>
-
-           <div className="space-y-6">
-              <h3 className="text-xl font-display font-bold text-[var(--text-primary)] flex items-center">
-                 <FileText className="w-5 h-5 mr-3 text-brand-yellow" />
-                 Laporan Final Kampanye
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                 {/* Left Column: Keyword & Meta */}
-                 <div className="md:col-span-1 space-y-6">
-                    <div className="bg-[var(--bg-secondary)] p-6 rounded-xl border border-[var(--border-color)]">
-                       <h4 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-4">Strategi Keyword</h4>
-                       <div className="space-y-4">
-                          <div>
-                             <span className="text-xs text-[var(--text-secondary)] block mb-1">Target Keyword</span>
-                             <span className="inline-block px-3 py-1 bg-brand-yellow/10 text-brand-yellow border border-brand-yellow/30 font-medium rounded-lg">{selectedCampaign.targetKeyword}</span>
-                          </div>
-                          <div>
-                             <span className="text-xs text-[var(--text-secondary)] block mb-2">LSI Keywords</span>
-                             <div className="flex flex-wrap gap-2">
-                                {selectedCampaign.lsiKeywords.map((kw, i) => (
-                                   <span key={i} className="px-2 py-1 bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border-color)] text-xs rounded shadow-sm">{kw}</span>
-                                ))}
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-                    
-                    <div className="bg-[var(--bg-secondary)] p-6 rounded-xl border border-[var(--border-color)] space-y-4">
-                       <h4 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">Meta Tags Final</h4>
-                       <div>
-                         <span className="text-xs font-bold text-[var(--text-secondary)] mb-1 block">Title</span>
-                         <p className="text-blue-400 font-medium text-sm leading-tight">{selectedCampaign.metaTitle}</p>
-                       </div>
-                       <div>
-                         <span className="text-xs font-bold text-[var(--text-secondary)] mb-1 block">Description</span>
-                         <p className="text-[var(--text-primary)] text-sm">{selectedCampaign.metaDesc}</p>
-                       </div>
-                    </div>
-                 </div>
-
-                 {/* Right Column: Content Sandbox */}
-                 <div className="md:col-span-2">
-                    <div className="h-full flex flex-col">
-                       <div className="p-4 bg-[var(--bg-secondary)] border-t border-x border-[var(--border-color)] rounded-t-xl shrink-0 flex items-center justify-between">
-                          <span className="text-sm font-semibold text-[var(--text-primary)]">Teks Artikel Final</span>
-                          <span className="text-xs text-[var(--text-secondary)]">Read-Only</span>
-                       </div>
-                       <div className="p-6 bg-[#1a1a1c] border border-[var(--border-color)] rounded-b-xl overflow-y-auto flex-1 min-h-[300px]">
-                          <div className="prose prose-invert prose-sm max-w-none font-mono text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed">
-                             {selectedCampaign.finalContent}
-                          </div>
-                       </div>
-                    </div>
-                 </div>
-              </div>
-           </div>
-           
-           <div className="pt-6 border-t border-[var(--border-color)] text-right flex items-center justify-end">
-              <button className="flex items-center px-6 py-3 bg-brand-yellow text-brand-black font-semibold rounded-xl hover:bg-brand-yellow-hover shadow-sm transition-colors">
-                <Download className="w-5 h-5 mr-2" />
-                Unduh Laporan Lengkap PDF
-              </button>
-           </div>
-        </motion.div>
+      <div className="h-full flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-brand-yellow" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <div>
-          <h2 className="text-2xl font-display font-bold mb-2">Arsip Workspace</h2>
-          <p className="text-[var(--text-secondary)]">Tinjau kampanye yang diselesaikan dan disetujui untuk workspace ini.</p>
+          <h2 className="text-2xl font-display font-bold mb-2 flex items-center">
+            <History className="w-6 h-6 mr-2 text-brand-yellow" />
+            Arsip Workspace
+          </h2>
+          <p className="text-[var(--text-secondary)]">Akses dan tinjau laporan kampanye SEO yang telah selesai.</p>
         </div>
-        <div className="relative w-full sm:w-64 shrink-0">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[var(--text-secondary)]">
-            <Search className="h-4 w-4" />
-          </div>
+        
+        <div className="relative max-w-sm w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] w-5 h-5" />
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="block w-full pl-9 pr-3 py-2.5 text-sm border border-[var(--border-color)] rounded-xl bg-[var(--bg-primary)] focus:outline-none focus:ring-2 focus:ring-brand-yellow focus:border-transparent transition-shadow"
             placeholder="Cari kampanye..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl focus:outline-none focus:border-brand-yellow transition-colors"
           />
         </div>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] shadow-sm overflow-hidden flex-1"
-      >
-        {filteredCampaigns.length > 0 ? (
-          <div className="overflow-x-auto h-full">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/30">
-                  <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)]">Nama Task / Kampanye</th>
-                  <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)]">Tanggal Diselesaikan</th>
-                  <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)]">Writer yang Ditugaskan</th>
-                  <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)] text-center">Skor SEO Final</th>
-                  <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)] text-right">Aksi</th>
+      <div className="flex-1 min-h-0 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] overflow-hidden shadow-sm flex flex-col">
+        <div className="overflow-x-auto flex-1">
+          <table className="w-full text-left border-collapse min-w-[800px]">
+            <thead>
+              <tr className="bg-[var(--bg-secondary)]/50 border-b border-[var(--border-color)]">
+                <th className="p-4 font-semibold text-[var(--text-secondary)]">Kampanye</th>
+                <th className="p-4 font-semibold text-[var(--text-secondary)]">Tim (Analyst & Writer)</th>
+                <th className="p-4 font-semibold text-[var(--text-secondary)]">Skor SEO Akhir</th>
+                <th className="p-4 font-semibold text-[var(--text-secondary)]">Tanggal Selesai</th>
+                <th className="p-4 font-semibold text-[var(--text-secondary)] text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-color)]">
+              {filteredArchives.map((project) => (
+                <tr key={project.id} className="hover:bg-[var(--bg-secondary)]/30 transition-colors">
+                  <td className="p-4">
+                    <p className="font-bold text-[var(--text-primary)]">{project.title}</p>
+                    <p className="text-xs text-[var(--text-secondary)] line-clamp-1 max-w-sm mt-1">{project.description}</p>
+                  </td>
+                  <td className="p-4 text-sm text-[var(--text-primary)]">
+                    <span className="block">{project.analyst_name}</span>
+                    <span className="block text-[var(--text-secondary)] text-xs mt-0.5">{project.writer_name}</span>
+                  </td>
+                  <td className="p-4">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                      project.seo_score >= 80 ? 'bg-green-500/10 text-green-500' :
+                      project.seo_score >= 60 ? 'bg-yellow-500/10 text-yellow-500' :
+                      'bg-red-500/10 text-red-500'
+                    }`}>
+                      <Star className="w-3.5 h-3.5 mr-1" />
+                      {project.seo_score}/100
+                    </span>
+                  </td>
+                  <td className="p-4 text-sm text-[var(--text-secondary)] whitespace-nowrap">
+                    {formatDate(project.completed_at)}
+                  </td>
+                  <td className="p-4 text-right">
+                    <button
+                      onClick={() => openReport(project)}
+                      className="px-4 py-2 bg-brand-yellow/10 text-brand-yellow font-semibold rounded-lg hover:bg-brand-yellow hover:text-brand-black transition-colors inline-flex items-center text-sm whitespace-nowrap"
+                    >
+                      <FileText className="w-4 h-4 mr-1.5" />
+                      Lihat Laporan
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredCampaigns.map((campaign) => (
-                  <tr key={campaign.id} className="border-b border-[var(--border-color)] last:border-0 hover:bg-[var(--bg-secondary)]/20 transition-colors group">
-                    <td className="py-4 px-6 font-medium">
-                      {campaign.name}
-                    </td>
-                    <td className="py-4 px-6 text-sm text-[var(--text-secondary)]">
-                      {campaign.completedDate}
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center text-sm">
-                        <div className="w-6 h-6 rounded-full bg-brand-yellow/20 text-brand-yellow flex items-center justify-center font-bold text-xs mr-2">
-                          {campaign.assignedWriter.charAt(0)}
-                        </div>
-                        {campaign.assignedWriter}
-                      </div>
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                       <span className="font-bold text-green-500">{campaign.finalScore}</span>
-                    </td>
-                    <td className="py-4 px-6 text-right">
-                       <button
-                         onClick={() => setSelectedCampaign(campaign)}
-                         className="px-4 py-2 inline-flex items-center justify-center rounded-lg font-semibold bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:bg-brand-yellow hover:text-brand-black hover:border-brand-yellow transition-colors text-sm"
-                       >
-                         <Eye className="w-4 h-4 mr-2" />
-                         Lihat Laporan Final
-                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-12 text-center flex flex-col items-center justify-center h-full">
-             <div className="w-16 h-16 rounded-full bg-[var(--bg-secondary)] mb-4 flex items-center justify-center">
+              ))}
+            </tbody>
+          </table>
+          
+          {filteredArchives.length === 0 && (
+            <div className="h-64 flex flex-col items-center justify-center p-8 text-center bg-[var(--bg-primary)]">
+              <div className="w-16 h-16 rounded-full bg-[var(--bg-secondary)] flex items-center justify-center mb-4">
                 <Search className="w-8 h-8 text-[var(--text-secondary)] opacity-50" />
-             </div>
-             <h3 className="text-lg font-bold mb-2">Tidak ada kampanye yang ditemukan.</h3>
-             <p className="text-[var(--text-secondary)] max-w-sm">
-               Sepertinya tidak ada kampanye disetujui yang cocok dengan pencarian Anda.
-             </p>
+              </div>
+              <p className="text-[var(--text-secondary)] font-medium max-w-sm">
+                Tidak ada kampanye yang ditemukan. Sepertinya tidak ada kampanye disetujui yang cocok dengan pencarian Anda.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Report Modal */}
+      <AnimatePresence>
+        {isModalOpen && selectedProject && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setIsModalOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-4xl max-h-[90vh] bg-[var(--bg-primary)] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-[var(--border-color)]"
+            >
+              <div className="flex items-center justify-between p-6 border-b border-[var(--border-color)] shrink-0 bg-[var(--bg-secondary)]/30">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-brand-yellow/10 rounded-lg">
+                    <FileText className="w-6 h-6 text-brand-yellow" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-display font-bold">Laporan Akhir: {selectedProject.title}</h3>
+                    <p className="text-sm text-[var(--text-secondary)] flex items-center mt-1">
+                      <Calendar className="w-4 h-4 mr-1" />
+                      Disetujui pada {formatDate(selectedProject.completed_at)}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsModalOpen(false)}
+                  className="p-2 text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] rounded-full transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8">
+                {/* Metrics Bar */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-[var(--bg-secondary)] p-4 rounded-xl border border-[var(--border-color)]">
+                    <p className="text-xs text-[var(--text-secondary)] font-bold uppercase tracking-wider mb-1">Skor SEO</p>
+                    <p className="text-2xl font-bold text-green-500">{selectedProject.seo_score}</p>
+                  </div>
+                  <div className="bg-[var(--bg-secondary)] p-4 rounded-xl border border-[var(--border-color)]">
+                    <p className="text-xs text-[var(--text-secondary)] font-bold uppercase tracking-wider mb-1">Target Keyword</p>
+                    <p className="text-base font-bold truncate" title={selectedProject.focus_keyword}>{selectedProject.focus_keyword}</p>
+                  </div>
+                  <div className="bg-[var(--bg-secondary)] p-4 rounded-xl border border-[var(--border-color)]">
+                    <p className="text-xs text-[var(--text-secondary)] font-bold uppercase tracking-wider mb-1">Readability</p>
+                    <p className="text-base font-bold text-blue-500">{selectedProject.readability_level}</p>
+                  </div>
+                  <div className="bg-[var(--bg-secondary)] p-4 rounded-xl border border-[var(--border-color)]">
+                    <p className="text-xs text-[var(--text-secondary)] font-bold uppercase tracking-wider mb-1">Status</p>
+                    <p className="text-base font-bold flex items-center text-green-500">
+                      Selesai
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Meta Tags */}
+                  <div className="space-y-4">
+                    <h4 className="font-bold flex items-center text-[var(--text-primary)] border-b border-[var(--border-color)] pb-2">
+                      <LayoutTemplate className="w-5 h-5 mr-2 text-brand-yellow" />
+                      Meta Tags Final
+                    </h4>
+                    <div className="bg-[var(--bg-secondary)] p-5 rounded-xl border border-[var(--border-color)] space-y-4">
+                      <div>
+                        <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">Meta Title</span>
+                        <p className="text-blue-500 font-medium leading-tight">{selectedProject.meta_title}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">Meta Description</span>
+                        <p className="text-[var(--text-primary)] text-sm">{selectedProject.meta_description}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tim */}
+                  <div className="space-y-4">
+                    <h4 className="font-bold flex items-center text-[var(--text-primary)] border-b border-[var(--border-color)] pb-2">
+                      <AlertCircle className="w-5 h-5 mr-2 text-brand-yellow" />
+                      Tim Penanggung Jawab
+                    </h4>
+                    <div className="bg-[var(--bg-secondary)] p-5 rounded-xl border border-[var(--border-color)] space-y-4">
+                      <div>
+                        <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">SEO Analyst</span>
+                        <p className="font-medium">{selectedProject.analyst_name}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">Content Writer</span>
+                        <p className="font-medium">{selectedProject.writer_name}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Content Draft */}
+                <div className="space-y-4">
+                  <h4 className="font-bold flex items-center text-[var(--text-primary)] border-b border-[var(--border-color)] pb-2">
+                    <FileText className="w-5 h-5 mr-2 text-brand-yellow" />
+                    Draf Konten Final
+                  </h4>
+                  <div className="bg-[var(--bg-secondary)] p-6 rounded-xl border border-[var(--border-color)] text-[var(--text-primary)] prose prose-invert max-w-none">
+                    <div className="whitespace-pre-wrap leading-relaxed text-sm">
+                      {selectedProject.content_draft}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+            </motion.div>
           </div>
         )}
-      </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

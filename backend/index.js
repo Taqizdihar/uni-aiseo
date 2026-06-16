@@ -30,6 +30,8 @@ const keywordRoutes = require('./routes/keywordRoutes');
 const onpageRoutes = require('./routes/onpageRoutes');
 const metatagRoutes = require('./routes/metatagRoutes');
 const approvalRoutes = require('./routes/approvalRoutes');
+const archiveRoutes = require('./routes/archiveRoutes');
+const faqRoutes = require('./routes/faqRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -41,6 +43,8 @@ app.use('/api/keywords', keywordRoutes);
 app.use('/api/onpage', onpageRoutes);
 app.use('/api/metatags', metatagRoutes);
 app.use('/api/approval', approvalRoutes);
+app.use('/api/archive', archiveRoutes);
+app.use('/api/faqs', faqRoutes);
 
 app.get('/', (req, res) => {
   res.send('UNI-AISEO API is running');
