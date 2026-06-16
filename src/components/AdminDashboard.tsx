@@ -1,244 +1,333 @@
-import React, { useState } from "react";
-import { motion } from "motion/react";
-import {
-  Users,
-  Zap,
-  Activity,
-  Ban,
-  Trash2,
-  ShieldCheck,
-  Building2,
-} from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { Shield, Users, Activity, Settings, Database, Server, Trash2, Ban, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import api from '../utils/api';
 
-interface MockRegisteredUser {
-  id: string;
+interface Metrics {
+  totalWorkspaces: number;
+  totalUsers: number;
+  totalApiCredits: number;
+  activeSessions: number;
+}
+
+interface User {
+  id: number;
   name: string;
   email: string;
   role: string;
-  workspace: string;
-  date: string;
-  status: "Active" | "Suspended";
+  status: string;
+  created_at: string;
+  workspace_name: string | null;
 }
 
-const initialUsers: MockRegisteredUser[] = [
-  {
-    id: "1",
-    name: "Siti Rahmawati",
-    email: "siti@example.com",
-    role: "SEO Analyst",
-    workspace: "UMKM Maju Jaya",
-    date: "2026-06-10",
-    status: "Active",
-  },
-  {
-    id: "2",
-    name: "Budi Santoso",
-    email: "budi@example.com",
-    role: "SEO Analyst",
-    workspace: "Digital Agency X",
-    date: "2026-06-09",
-    status: "Active",
-  },
-  {
-    id: "3",
-    name: "Andi Pratama",
-    email: "andi@example.com",
-    role: "Content Writer",
-    workspace: "Tech Startup Alpha",
-    date: "2026-06-08",
-    status: "Suspended",
-  },
-  {
-    id: "4",
-    name: "Admin Sistem",
-    email: "admin@gmail.com",
-    role: "Administrator",
-    workspace: "System",
-    date: "2026-06-01",
-    status: "Active",
-  },
-];
-
 export default function AdminDashboard() {
-  const [users, setUsers] = useState<MockRegisteredUser[]>(initialUsers);
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const toggleStatus = (id: string) => {
-    setUsers(
-      users.map((u) => {
-        if (u.id === id) {
-          return {
-            ...u,
-            status: u.status === "Active" ? "Suspended" : "Active",
-          };
-        }
-        return u;
-      }),
-    );
+  // Toast
+  const [showToast, setShowToast] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
+
+  // Modal
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const notify = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToastMsg(msg);
+    setToastType(type);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 4000);
   };
 
-  const deleteUser = (id: string) => {
-    if (window.confirm("Apakah Anda yakin ingin menghapus pengguna ini?")) {
-      setUsers(users.filter((u) => u.id !== id));
+  const fetchData = async () => {
+    try {
+      const [metricsRes, usersRes] = await Promise.all([
+        api.get('/admin/metrics'),
+        api.get('/admin/users')
+      ]);
+      setMetrics(metricsRes.data);
+      setUsers(usersRes.data);
+    } catch (err: any) {
+      console.error('Error fetching admin data:', err);
+      notify('Gagal memuat data dashboard admin', 'error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const stats = [
-    {
-      title: "Total Workspace Aktif",
-      value: "24",
-      icon: <Building2 className="w-5 h-5 text-[var(--text-secondary)]" />,
-    },
-    {
-      title: "Total Pengguna Terdaftar",
-      value: users.length.toString(),
-      icon: <Users className="w-5 h-5 text-[var(--text-secondary)]" />,
-    },
-    {
-      title: "Total Kredit API Digunakan",
-      value: "1,245,000",
-      icon: <Zap className="w-5 h-5 text-[var(--text-secondary)]" />,
-    },
-    {
-      title: "Sesi Aktif",
-      value: "42",
-      icon: <Activity className="w-5 h-5 text-[var(--text-secondary)]" />,
-    },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleToggleStatus = async (user: User) => {
+    const newStatus = user.status === 'Aktif' ? 'Ditangguhkan' : 'Aktif';
+    try {
+      await api.put(`/admin/users/${user.id}/status`, { status: newStatus });
+      notify(`Status pengguna berhasil diubah menjadi ${newStatus}`);
+      fetchData(); // Refresh list
+    } catch (err: any) {
+      console.error('Error toggling status:', err);
+      notify(err.response?.data?.message || 'Gagal mengubah status', 'error');
+    }
+  };
+
+  const confirmDelete = (user: User) => {
+    setSelectedUser(user);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedUser) return;
+    setIsSubmitting(true);
+    try {
+      await api.delete(`/admin/users/${selectedUser.id}`);
+      notify('Pengguna berhasil dihapus permanen');
+      setIsDeleteModalOpen(false);
+      fetchData();
+    } catch (err: any) {
+      console.error('Error deleting user:', err);
+      notify(err.response?.data?.message || 'Gagal menghapus pengguna', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-brand-yellow" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8">
-      <div className="mb-8">
-        <h2 className="text-2xl font-display font-bold mb-2 flex items-center">
-          <ShieldCheck className="w-6 h-6 mr-2 text-brand-yellow" />
-          Dashboard Administrator
-        </h2>
-        <p className="text-[var(--text-secondary)]">
-          Kelola pengaturan sistem, pengguna, dan awasi penggunaan platform.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, idx) => (
-          <motion.div
-            key={idx}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.1 }}
-            className="bg-[var(--bg-primary)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm hover:shadow-md transition-shadow group"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div className="p-2 bg-[var(--bg-secondary)] rounded-xl group-hover:bg-brand-yellow/10 transition-colors">
-                {stat.icon}
-              </div>
-            </div>
-            <h3 className="text-3xl font-display font-bold mb-1">
-              {stat.value}
-            </h3>
-            <div className="flex justify-between items-end">
-              <p className="text-[var(--text-secondary)] font-medium">
-                {stat.title}
-              </p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] shadow-sm overflow-hidden"
-      >
-        <div className="p-6 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/30">
-          <h3 className="text-lg font-bold">Manajemen Pengguna</h3>
+    <div className="space-y-6 h-full overflow-y-auto pb-8 pr-2">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-display font-bold mb-2 flex items-center">
+            <Shield className="w-6 h-6 mr-2 text-brand-yellow" />
+            Super Admin Dashboard
+          </h2>
+          <p className="text-[var(--text-secondary)]">Pantau aktivitas platform dan kelola pengguna secara global.</p>
         </div>
+      </div>
+
+      {/* System Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-[var(--bg-secondary)] p-6 rounded-2xl border border-[var(--border-color)]">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center">
+              <Database className="w-6 h-6 text-blue-500" />
+            </div>
+          </div>
+          <p className="text-sm text-[var(--text-secondary)] font-medium">Total Workspaces</p>
+          <h3 className="text-3xl font-display font-bold mt-1">{metrics?.totalWorkspaces || 0}</h3>
+        </div>
+        
+        <div className="bg-[var(--bg-secondary)] p-6 rounded-2xl border border-[var(--border-color)]">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center">
+              <Users className="w-6 h-6 text-emerald-500" />
+            </div>
+          </div>
+          <p className="text-sm text-[var(--text-secondary)] font-medium">Total Pengguna Aktif</p>
+          <h3 className="text-3xl font-display font-bold mt-1">{metrics?.totalUsers || 0}</h3>
+        </div>
+
+        <div className="bg-[var(--bg-secondary)] p-6 rounded-2xl border border-[var(--border-color)]">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center">
+              <Activity className="w-6 h-6 text-purple-500" />
+            </div>
+          </div>
+          <p className="text-sm text-[var(--text-secondary)] font-medium">Kredit AI Terpakai</p>
+          <h3 className="text-3xl font-display font-bold mt-1">{metrics?.totalApiCredits || 0}</h3>
+        </div>
+
+        <div className="bg-[var(--bg-secondary)] p-6 rounded-2xl border border-[var(--border-color)]">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-brand-yellow/10 rounded-xl flex items-center justify-center">
+              <Server className="w-6 h-6 text-brand-yellow" />
+            </div>
+          </div>
+          <p className="text-sm text-[var(--text-secondary)] font-medium">Sesi Aktif (24j)</p>
+          <h3 className="text-3xl font-display font-bold mt-1">{metrics?.activeSessions || 0}</h3>
+        </div>
+      </div>
+
+      {/* User Management */}
+      <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] overflow-hidden">
+        <div className="p-6 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-secondary)]/30">
+          <h3 className="text-lg font-bold flex items-center">
+            <Settings className="w-5 h-5 mr-2 text-[var(--text-secondary)]" />
+            Manajemen Pengguna Global
+          </h3>
+        </div>
+        
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/30">
-                <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)]">
-                  Nama
-                </th>
-                <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)]">
-                  Email
-                </th>
-                <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)]">
-                  Role
-                </th>
-                <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)]">
-                  Workspace
-                </th>
-                <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)]">
-                  Tanggal Registrasi
-                </th>
-                <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)]">
-                  Status
-                </th>
-                <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)] text-right">
-                  Aksi
-                </th>
+              <tr className="bg-[var(--bg-secondary)]/50 border-b border-[var(--border-color)]">
+                <th className="p-4 font-semibold text-[var(--text-secondary)]">Pengguna</th>
+                <th className="p-4 font-semibold text-[var(--text-secondary)]">Role</th>
+                <th className="p-4 font-semibold text-[var(--text-secondary)]">Workspace</th>
+                <th className="p-4 font-semibold text-[var(--text-secondary)]">Status</th>
+                <th className="p-4 font-semibold text-[var(--text-secondary)]">Terdaftar</th>
+                <th className="p-4 font-semibold text-[var(--text-secondary)] text-right">Aksi</th>
               </tr>
             </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr
-                  key={user.id}
-                  className="border-b border-[var(--border-color)] last:border-0 hover:bg-[var(--bg-secondary)]/20 transition-colors"
-                >
-                  <td className="py-4 px-6 font-medium">{user.name}</td>
-                  <td className="py-4 px-6 text-[var(--text-secondary)]">
-                    {user.email}
-                  </td>
-                  <td className="py-4 px-6 text-sm">
-                    <span
-                      className={`px-2 py-1 rounded bg-[var(--bg-secondary)] text-xs font-bold border border-[var(--border-color)] ${user.role === "Administrator" ? "text-brand-yellow" : ""}`}
-                    >
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6 text-[var(--text-primary)] text-sm">
-                    {user.workspace}
-                  </td>
-                  <td className="py-4 px-6 text-sm text-[var(--text-secondary)]">
-                    {user.date}
-                  </td>
-                  <td className="py-4 px-6">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium border ${
-                        user.status === "Active"
-                          ? "bg-green-500/10 text-green-500 border-green-500/20"
-                          : "bg-red-500/10 text-red-500 border-red-500/20"
-                      }`}
-                    >
-                      {user.status === "Active" ? "Aktif" : "Ditangguhkan"}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6 text-right space-x-2">
-                    <button
-                      onClick={() => toggleStatus(user.id)}
-                      className="p-2 inline-flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:text-brand-yellow hover:bg-[var(--bg-secondary)] transition-colors"
-                      title={
-                        user.status === "Active"
-                          ? "Tangguhkan Pengguna"
-                          : "Aktifkan Pengguna"
-                      }
-                    >
-                      <Ban className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => deleteUser(user.id)}
-                      className="p-2 inline-flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:text-red-500 hover:bg-[var(--bg-secondary)] transition-colors"
-                      title="Hapus Pengguna"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+            <tbody className="divide-y divide-[var(--border-color)]">
+              {users.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-[var(--text-secondary)] font-medium">
+                    Belum ada pengguna terdaftar.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                users.map((user) => (
+                  <tr key={user.id} className="hover:bg-[var(--bg-secondary)]/30 transition-colors">
+                    <td className="p-4">
+                      <p className="font-bold text-[var(--text-primary)]">{user.name}</p>
+                      <p className="text-xs text-[var(--text-secondary)]">{user.email}</p>
+                    </td>
+                    <td className="p-4">
+                      <span className={`inline-flex px-2 py-1 rounded-md text-xs font-semibold ${
+                        user.role === 'Administrator' ? 'bg-brand-yellow text-brand-black' :
+                        user.role === 'SEO Manager' ? 'bg-blue-500/10 text-blue-500' :
+                        user.role === 'SEO Analyst' ? 'bg-purple-500/10 text-purple-500' :
+                        'bg-emerald-500/10 text-emerald-500'
+                      }`}>
+                        {user.role}
+                      </span>
+                    </td>
+                    <td className="p-4 text-sm text-[var(--text-secondary)]">
+                      {user.workspace_name || '-'}
+                    </td>
+                    <td className="p-4">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${
+                        user.status === 'Aktif' 
+                          ? 'bg-green-500/10 text-green-500' 
+                          : 'bg-red-500/10 text-red-500'
+                      }`}>
+                        {user.status}
+                      </span>
+                    </td>
+                    <td className="p-4 text-sm text-[var(--text-secondary)]">
+                      {formatDate(user.created_at)}
+                    </td>
+                    <td className="p-4 text-right">
+                      <div className="flex items-center justify-end space-x-2">
+                        {user.role !== 'Administrator' && (
+                          <>
+                            <button 
+                              onClick={() => handleToggleStatus(user)}
+                              className={`p-2 rounded-lg transition-colors ${
+                                user.status === 'Aktif' 
+                                  ? 'text-orange-500 hover:bg-orange-500/10' 
+                                  : 'text-green-500 hover:bg-green-500/10'
+                              }`}
+                              title={user.status === 'Aktif' ? "Tangguhkan Pengguna" : "Aktifkan Pengguna"}
+                            >
+                              {user.status === 'Aktif' ? <Ban className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                            </button>
+                            <button 
+                              onClick={() => confirmDelete(user)}
+                              className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                              title="Hapus Permanen"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
-      </motion.div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {isDeleteModalOpen && selectedUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => !isSubmitting && setIsDeleteModalOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-md bg-[var(--bg-primary)] rounded-2xl shadow-2xl p-6 border border-[var(--border-color)] text-center"
+            >
+              <div className="w-16 h-16 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Hapus Pengguna ini?</h3>
+              <p className="text-[var(--text-secondary)] mb-6">
+                Tindakan ini tidak dapat dibatalkan. Seluruh data terkait pengguna "{selectedUser.name}" mungkin akan ikut terhapus.
+              </p>
+              <div className="flex justify-center gap-3">
+                <button
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  disabled={isSubmitting}
+                  className="px-5 py-2.5 font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] rounded-xl transition-colors border border-[var(--border-color)]"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={isSubmitting}
+                  className="px-6 py-2.5 bg-red-500 text-white font-semibold rounded-xl hover:bg-red-600 flex items-center"
+                >
+                  {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Ya, Hapus
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {showToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className={`fixed bottom-6 right-6 px-6 py-4 rounded-xl shadow-lg flex items-center space-x-3 z-50 ${
+              toastType === 'success'
+                ? 'bg-green-500 text-white'
+                : 'bg-red-500/90 text-white border border-red-400'
+            }`}
+          >
+            {toastType === 'success' ? (
+              <CheckCircle2 className="w-6 h-6" />
+            ) : (
+              <AlertCircle className="w-6 h-6" />
+            )}
+            <span className="font-medium">{toastMsg}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

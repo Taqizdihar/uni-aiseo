@@ -1,204 +1,179 @@
-import React, { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import {
-  Building2,
-  Search,
-  MoreVertical,
-  ShieldAlert,
-  Key,
-  Users,
-} from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { Database, Search, Ban, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import api from '../utils/api';
 
-interface WorkspaceData {
-  id: string;
+interface Workspace {
+  id: number;
   name: string;
-  ownerName: string;
-  totalMembers: number;
-  apiCreditUsed: number;
-  apiCreditLimit: number;
-  status: "aktif" | "ditangguhkan";
+  status: string;
+  api_credits_used: number;
+  created_at: string;
+  total_members: number;
+  owner_name: string | null;
 }
 
-const initialWorkspaces: WorkspaceData[] = [
-  {
-    id: "ws-1",
-    name: "UMKM Maju Jaya",
-    ownerName: "M. Taqi",
-    totalMembers: 4,
-    apiCreditUsed: 1250,
-    apiCreditLimit: 5000,
-    status: "aktif",
-  },
-  {
-    id: "ws-2",
-    name: "Digital Agency X",
-    ownerName: "Sarah Jenkins",
-    totalMembers: 12,
-    apiCreditUsed: 8400,
-    apiCreditLimit: 10000,
-    status: "aktif",
-  },
-  {
-    id: "ws-3",
-    name: "Tech Startup Alpha",
-    ownerName: "Budi Santoso",
-    totalMembers: 6,
-    apiCreditUsed: 5200,
-    apiCreditLimit: 5000,
-    status: "ditangguhkan",
-  },
-];
-
 export default function WorkspaceManager() {
-  const [workspaces, setWorkspaces] =
-    useState<WorkspaceData[]>(initialWorkspaces);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Toast
   const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
-  const filtered = workspaces.filter(
-    (ws) =>
-      ws.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ws.ownerName.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
-
-  const toggleStatus = (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === "aktif" ? "ditangguhkan" : "aktif";
-    setWorkspaces((prev) =>
-      prev.map((ws) => (ws.id === id ? { ...ws, status: newStatus } : ws)),
-    );
-    setToastMessage(
-      `Workspace berhasil ${newStatus === "aktif" ? "diaktifkan" : "ditangguhkan"}.`,
-    );
+  const notify = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToastMsg(msg);
+    setToastType(type);
     setShowToast(true);
-    setTimeout(() => {
-      setShowToast(false);
-    }, 3000);
+    setTimeout(() => setShowToast(false), 4000);
   };
 
+  const fetchWorkspaces = async () => {
+    try {
+      const res = await api.get('/admin/workspaces');
+      setWorkspaces(res.data);
+    } catch (err) {
+      console.error('Error fetching workspaces:', err);
+      notify('Gagal memuat data workspace', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchWorkspaces();
+  }, []);
+
+  const handleToggleStatus = async (workspace: Workspace) => {
+    const newStatus = workspace.status === 'Aktif' ? 'Ditangguhkan' : 'Aktif';
+    try {
+      await api.put(`/admin/workspaces/${workspace.id}/status`, { status: newStatus });
+      notify(`Status workspace berhasil diubah menjadi ${newStatus}`);
+      fetchWorkspaces();
+    } catch (err: any) {
+      console.error('Error toggling workspace status:', err);
+      notify(err.response?.data?.message || 'Gagal mengubah status', 'error');
+    }
+  };
+
+  const filteredWorkspaces = workspaces.filter(w => 
+    w.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (w.owner_name && w.owner_name.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-brand-yellow" />
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 h-full flex flex-col">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <div>
           <h2 className="text-2xl font-display font-bold mb-2 flex items-center">
-            <Building2 className="w-6 h-6 mr-2 text-brand-yellow" />
+            <Database className="w-6 h-6 mr-2 text-brand-yellow" />
             Kelola Workspace
           </h2>
-          <p className="text-[var(--text-secondary)]">
-            Manajemen global untuk seluruh entitas organisasi dalam platform.
-          </p>
+          <p className="text-[var(--text-secondary)]">Pantau penggunaan dan kelola status workspace pengguna.</p>
         </div>
+        
         <div className="relative w-full sm:w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] w-5 h-5" />
           <input
             type="text"
             placeholder="Cari workspace..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-xl py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-brand-yellow focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2.5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl focus:outline-none focus:border-brand-yellow transition-colors"
           />
-          <Search className="w-5 h-5 text-[var(--text-secondary)] absolute left-3 top-2.5" />
         </div>
       </div>
 
-      <div className="bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+      <div className="flex-1 min-h-0 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] overflow-hidden shadow-sm flex flex-col">
+        <div className="overflow-x-auto flex-1">
+          <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
-              <tr className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/30">
-                <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)]">
-                  Nama Workspace
-                </th>
-                <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)]">
-                  Pemilik (SEO Manager)
-                </th>
-                <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)]">
-                  Total Anggota
-                </th>
-                <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)] text-center">
-                  Kredit API Digunakan
-                </th>
-                <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)] text-center">
-                  Status
-                </th>
-                <th className="py-4 px-6 font-semibold text-sm text-[var(--text-secondary)] text-right">
-                  Aksi
-                </th>
+              <tr className="bg-[var(--bg-secondary)]/50 border-b border-[var(--border-color)]">
+                <th className="p-4 font-semibold text-[var(--text-secondary)]">Nama Workspace</th>
+                <th className="p-4 font-semibold text-[var(--text-secondary)]">SEO Manager (Owner)</th>
+                <th className="p-4 font-semibold text-[var(--text-secondary)] text-center">Total Member</th>
+                <th className="p-4 font-semibold text-[var(--text-secondary)] text-center">Kredit Terpakai</th>
+                <th className="p-4 font-semibold text-[var(--text-secondary)]">Status</th>
+                <th className="p-4 font-semibold text-[var(--text-secondary)]">Dibuat Pada</th>
+                <th className="p-4 font-semibold text-[var(--text-secondary)] text-right">Aksi</th>
               </tr>
             </thead>
-            <tbody>
-              {filtered.map((ws) => (
-                <tr
-                  key={ws.id}
-                  className="border-b border-[var(--border-color)] last:border-0 hover:bg-[var(--bg-secondary)]/50 transition-colors"
-                >
-                  <td className="py-4 px-6">
-                    <div className="font-bold text-[var(--text-primary)]">
-                      {ws.name}
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center text-sm font-medium">
-                      <div className="w-6 h-6 rounded-full bg-brand-yellow text-brand-black flex items-center justify-center text-xs mr-2 font-bold">
-                        {ws.ownerName.charAt(0)}
-                      </div>
-                      {ws.ownerName}
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center text-sm text-[var(--text-secondary)]">
-                      <Users className="w-4 h-4 mr-2" />
-                      {ws.totalMembers}
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex flex-col items-center">
-                      <span
-                        className={`text-sm font-bold ${ws.apiCreditUsed > ws.apiCreditLimit * 0.8 ? "text-red-500" : "text-green-500"}`}
-                      >
-                        {ws.apiCreditUsed.toLocaleString()} /{" "}
-                        {ws.apiCreditLimit.toLocaleString()}
-                      </span>
-                      <div className="w-24 bg-[var(--bg-secondary)] rounded-full h-1.5 mt-2 border border-[var(--border-color)]">
-                        <div
-                          className={`h-full rounded-full ${ws.apiCreditUsed > ws.apiCreditLimit * 0.8 ? "bg-red-500" : "bg-green-500"}`}
-                          style={{
-                            width: `${Math.min((ws.apiCreditUsed / ws.apiCreditLimit) * 100, 100)}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6 text-center">
-                    <span
-                      className={`inline-block px-3 py-1 rounded-full text-xs font-bold border ${ws.status === "aktif" ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-red-500/10 text-red-500 border-red-500/20"}`}
-                    >
-                      {ws.status === "aktif" ? "Aktif" : "Ditangguhkan"}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6 text-right">
-                    <button
-                      onClick={() => toggleStatus(ws.id, ws.status)}
-                      className={`p-2 rounded-lg transition-colors border ${ws.status === "aktif" ? "text-red-500 hover:bg-red-500/10 border-transparent hover:border-red-500/20" : "text-green-500 hover:bg-green-500/10 border-transparent hover:border-green-500/20"}`}
-                      title={
-                        ws.status === "aktif"
-                          ? "Tangguhkan Workspace"
-                          : "Aktifkan Workspace"
-                      }
-                    >
-                      <ShieldAlert className="w-5 h-5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
+            <tbody className="divide-y divide-[var(--border-color)]">
+              {filteredWorkspaces.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={6}
-                    className="py-8 text-center text-[var(--text-secondary)]"
-                  >
-                    Tidak ada workspace ditemukan.
+                  <td colSpan={7} className="p-8 text-center text-[var(--text-secondary)] font-medium">
+                    Belum ada workspace yang terdaftar di platform.
                   </td>
                 </tr>
+              ) : (
+                filteredWorkspaces.map((workspace) => (
+                  <tr key={workspace.id} className="hover:bg-[var(--bg-secondary)]/30 transition-colors">
+                    <td className="p-4">
+                      <p className="font-bold text-[var(--text-primary)]">{workspace.name}</p>
+                    </td>
+                    <td className="p-4 text-sm text-[var(--text-secondary)]">
+                      {workspace.owner_name || 'Tidak diketahui'}
+                    </td>
+                    <td className="p-4 text-center font-medium">
+                      {workspace.total_members}
+                    </td>
+                    <td className="p-4 text-center font-bold text-brand-yellow">
+                      {workspace.api_credits_used}
+                    </td>
+                    <td className="p-4">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                        workspace.status === 'Aktif' 
+                          ? 'bg-green-500/10 text-green-500' 
+                          : 'bg-red-500/10 text-red-500'
+                      }`}>
+                        {workspace.status}
+                      </span>
+                    </td>
+                    <td className="p-4 text-sm text-[var(--text-secondary)]">
+                      {formatDate(workspace.created_at)}
+                    </td>
+                    <td className="p-4 text-right">
+                      <button
+                        onClick={() => handleToggleStatus(workspace)}
+                        className={`inline-flex items-center px-3 py-1.5 rounded-lg font-medium text-sm transition-colors ${
+                          workspace.status === 'Aktif'
+                            ? 'bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white'
+                            : 'bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white'
+                        }`}
+                      >
+                        {workspace.status === 'Aktif' ? (
+                          <>
+                            <Ban className="w-4 h-4 mr-1.5" />
+                            Tangguhkan
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                            Aktifkan
+                          </>
+                        )}
+                      </button>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
@@ -209,15 +184,21 @@ export default function WorkspaceManager() {
       <AnimatePresence>
         {showToast && (
           <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-            className="fixed bottom-6 right-6 z-50"
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className={`fixed bottom-6 right-6 px-6 py-4 rounded-xl shadow-lg flex items-center space-x-3 z-50 ${
+              toastType === 'success'
+                ? 'bg-green-500 text-white'
+                : 'bg-red-500/90 text-white border border-red-400'
+            }`}
           >
-            <div className="bg-green-500/10 border border-green-500/20 text-green-500 px-4 py-3 rounded-xl shadow-lg backdrop-blur-md flex items-center">
-              <ShieldAlert className="w-5 h-5 mr-2" />
-              <span className="font-medium text-sm">{toastMessage}</span>
-            </div>
+            {toastType === 'success' ? (
+              <CheckCircle2 className="w-6 h-6" />
+            ) : (
+              <AlertCircle className="w-6 h-6" />
+            )}
+            <span className="font-medium">{toastMsg}</span>
           </motion.div>
         )}
       </AnimatePresence>

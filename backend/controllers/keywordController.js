@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const logAudit = require('../utils/auditLogger');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -61,6 +62,9 @@ Rules:
     if (!Array.isArray(keywords) || keywords.length === 0) {
       return res.status(502).json({ message: 'Respons AI tidak valid. Silakan coba lagi.' });
     }
+
+    // Audit log
+    await logAudit(req.user.id, `Generate AI Keyword: ${seed_keyword}`, req.ip);
 
     res.json(keywords);
   } catch (error) {

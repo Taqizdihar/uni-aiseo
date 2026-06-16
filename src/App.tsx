@@ -123,7 +123,8 @@ export default function App() {
     location.pathname === "/profile" ||
     location.pathname === "/admin" ||
     location.pathname === "/audit-trail" ||
-    location.pathname === "/manage-faqs";
+    location.pathname === "/manage-faqs" ||
+    location.pathname === "/manage-workspaces";
 
   if (isWorkspaceRoute) {
     if (!mockUser) {

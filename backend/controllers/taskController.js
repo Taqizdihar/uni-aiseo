@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const logAudit = require('../utils/auditLogger');
 
 exports.getTasks = async (req, res) => {
   try {
@@ -55,6 +56,9 @@ exports.createTask = async (req, res) => {
        WHERE t.id = ?`,
       [result.insertId]
     );
+
+    // Audit log
+    await logAudit(userId, `Membuat Tugas Baru: ${title}`, req.ip);
 
     res.status(201).json(newTask[0]);
   } catch (error) {

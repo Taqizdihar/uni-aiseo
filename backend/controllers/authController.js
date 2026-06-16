@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
+const logAudit = require('../utils/auditLogger');
 
 const SALT_ROUNDS = 10;
 
@@ -122,6 +123,9 @@ const login = async (req, res) => {
     const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, {
       expiresIn: '24h',
     });
+
+    // Audit log
+    await logAudit(user.id, 'Log Masuk (Login)', req.ip);
 
     return res.status(200).json({
       message: 'Login berhasil!',
