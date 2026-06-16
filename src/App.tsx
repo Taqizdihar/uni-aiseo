@@ -43,6 +43,7 @@ export default function App() {
     workspaceName?: string;
     workspaceBgUrl?: string;
     workspace_id?: number;
+    profilePicture?: string | null;
   } | null>(null);
 
   const navigate = useNavigate();
@@ -69,6 +70,8 @@ export default function App() {
           role: roleMap[userData.role] || userData.role,
           workspaceName: userData.workspace_name,
           workspace_id: userData.workspace_id,
+          profilePicture: userData.profile_picture ? `http://localhost:5000${userData.profile_picture}` : null,
+          workspaceBgUrl: userData.background_image ? `http://localhost:5000${userData.background_image}` : null,
         });
       } catch (e) {
         // Corrupted data, clear it
@@ -95,6 +98,8 @@ export default function App() {
     workspaceName?: string;
     workspace_id?: number;
     token?: string;
+    profilePicture?: string | null;
+    workspaceBgUrl?: string | null;
   }) => {
     setIsLoading(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -107,6 +112,8 @@ export default function App() {
         role: data.role,
         workspaceName: data.workspaceName,
         workspace_id: data.workspace_id,
+        profilePicture: data.profilePicture || null,
+        workspaceBgUrl: data.workspaceBgUrl || null,
       });
       setIsLoading(false);
       navigate(data.role === "admin" ? "/admin" : "/workspace/dashboard");

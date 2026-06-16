@@ -21,6 +21,7 @@ interface UserProfileProps {
     role: string;
     workspaceName?: string;
     workspaceBgUrl?: string;
+    profilePicture?: string | null;
   } | null;
   setMockUser?: React.Dispatch<React.SetStateAction<any>>;
 }
@@ -50,8 +51,20 @@ export default function UserProfile({
       const data = res.data;
       if (data.name) setName(data.name);
       if (data.workspace_name) setWorkspaceName(data.workspace_name);
-      if (data.profile_picture) setProfilePicUrl(`http://localhost:5000${data.profile_picture}`);
-      if (data.background_image) setWorkspaceBgUrl(`http://localhost:5000${data.background_image}`);
+      
+      const fullPicUrl = data.profile_picture ? `http://localhost:5000${data.profile_picture}` : null;
+      const fullBgUrl = data.background_image ? `http://localhost:5000${data.background_image}` : null;
+      
+      if (fullPicUrl) setProfilePicUrl(fullPicUrl);
+      if (fullBgUrl) setWorkspaceBgUrl(fullBgUrl);
+      
+      if (setMockUser) {
+        setMockUser((prev: any) => ({
+          ...prev,
+          profilePicture: fullPicUrl,
+          workspaceBgUrl: fullBgUrl
+        }));
+      }
     }).catch(err => console.error(err));
   }, []);
 
@@ -74,9 +87,35 @@ export default function UserProfile({
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
       if (endpoint === '/users/profile') {
-        setProfilePicUrl(`http://localhost:5000${data.profile_picture}`);
+        const fullUrl = `http://localhost:5000${data.profile_picture}`;
+        setProfilePicUrl(fullUrl);
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          userData.profile_picture = data.profile_picture;
+          localStorage.setItem('user', JSON.stringify(userData));
+        }
+        if (setMockUser) {
+          setMockUser((prev: any) => ({
+            ...prev,
+            profilePicture: fullUrl
+          }));
+        }
       } else {
-        setWorkspaceBgUrl(`http://localhost:5000${data.background_image}`);
+        const fullUrl = `http://localhost:5000${data.background_image}`;
+        setWorkspaceBgUrl(fullUrl);
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          userData.background_image = data.background_image;
+          localStorage.setItem('user', JSON.stringify(userData));
+        }
+        if (setMockUser) {
+          setMockUser((prev: any) => ({
+            ...prev,
+            workspaceBgUrl: fullUrl
+          }));
+        }
       }
     } catch (e) {
       console.error(e);

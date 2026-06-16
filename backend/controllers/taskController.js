@@ -215,12 +215,12 @@ exports.getDashboardMetrics = async (req, res) => {
     // 2. Performance Trend (Line Chart) - avg seo_score grouped by week over last 4 weeks
     const [trendRows] = await pool.query(`
       SELECT 
-        YEARWEEK(t.updated_at, 1) as yw,
+        YEARWEEK(t.created_at, 1) as yw,
         ROUND(AVG(tc.seo_score)) as score,
-        MIN(DATE(t.updated_at)) as week_start
+        MIN(DATE(t.created_at)) as week_start
       FROM task_contents tc
       JOIN tasks t ON tc.task_id = t.id
-      WHERE t.workspace_id = ? AND t.updated_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      WHERE t.workspace_id = ? AND t.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
       GROUP BY yw
       ORDER BY yw ASC
       LIMIT 4
@@ -233,18 +233,18 @@ exports.getDashboardMetrics = async (req, res) => {
     // 3. Keywords Generated (Bar Chart) - count per week over last 4 weeks
     const [kwRows] = await pool.query(`
       SELECT
-        YEARWEEK(tk.created_at, 1) as yw,
-        COUNT(*) as generated
+        YEARWEEK(t.created_at, 1) as yw,
+        COUNT(*) as keyword_count
       FROM task_keywords tk
       JOIN tasks t ON tk.task_id = t.id
-      WHERE t.workspace_id = ? AND tk.created_at >= DATE_SUB(NOW(), INTERVAL 28 DAY)
+      WHERE t.workspace_id = ? AND t.created_at >= DATE_SUB(NOW(), INTERVAL 28 DAY)
       GROUP BY yw
       ORDER BY yw ASC
       LIMIT 4
     `, [workspaceId]);
 
     const keywordData = kwRows.length > 0
-      ? kwRows.map((r, i) => ({ week: `Minggu ${i + 1}`, generated: r.generated || 0 }))
+      ? kwRows.map((r, i) => ({ week: `Minggu ${i + 1}`, generated: r.keyword_count || 0 }))
       : [
           { week: "Minggu 1", generated: 0 },
           { week: "Minggu 2", generated: 0 },

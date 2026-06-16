@@ -8,7 +8,7 @@ const API_BASE_URL = 'http://localhost:5000/api/auth';
 interface AuthProps {
   view: 'login' | 'register';
   navigate: (view: AppState) => void;
-  onSubmit: (data: { name: string; email: string; role: string; workspaceName?: string; workspace_id?: number; token?: string }) => void;
+  onSubmit: (data: { name: string; email: string; role: string; workspaceName?: string; workspace_id?: number; token?: string; profilePicture?: string | null; workspaceBgUrl?: string | null }) => void;
 }
 
 export default function Auth({ view, navigate, onSubmit }: AuthProps) {
@@ -115,6 +115,8 @@ export default function Auth({ view, navigate, onSubmit }: AuthProps) {
           workspaceName: loginData.user.workspace_name,
           workspace_id: loginData.user.workspace_id,
           token: loginData.token,
+          profilePicture: loginData.user.profile_picture ? `http://localhost:5000${loginData.user.profile_picture}` : null,
+          workspaceBgUrl: loginData.user.background_image ? `http://localhost:5000${loginData.user.background_image}` : null,
         });
       }
     } catch (error) {
@@ -196,6 +198,7 @@ export default function Auth({ view, navigate, onSubmit }: AuthProps) {
                       disabled={isSubmitting}
                     />
                   </div>
+                  <p className="text-xs text-[var(--text-secondary)] mt-2 italic">(Catatan: Jika email Anda sudah didaftarkan oleh Manager, nama workspace yang Anda ketik di sini akan diabaikan dan Anda akan langsung diarahkan ke workspace tim)</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Nama Lengkap</label>

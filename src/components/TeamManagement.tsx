@@ -40,7 +40,7 @@ export default function TeamManagement({ mockUser }: { mockUser?: { role: string
   const [visualTeam, setVisualTeam] = useState<VisualMember[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('SEO Analyst');
-  const [showToast, setShowToast] = useState<'invite' | 'resend' | 'revoke' | null>(null);
+  const [showToast, setShowToast] = useState<'invite' | 'revoke' | null>(null);
   const [memberToRevoke, setMemberToRevoke] = useState<{ id: string; email: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -80,18 +80,36 @@ export default function TeamManagement({ mockUser }: { mockUser?: { role: string
   const handlePrev = () => setActiveIndex((prev) => (prev - 1 + visualTeam.length) % visualTeam.length);
   const handleNext = () => setActiveIndex((prev) => (prev + 1) % visualTeam.length);
 
-  const handleInvite = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inviteEmail.trim()) return;
+  const [isSending, setIsSending] = useState(false);
 
-    setTeam([
-      ...team,
-      { id: Date.now().toString(), email: inviteEmail, role: inviteRole, status: 'Pending' }
-    ]);
-    setInviteEmail('');
-    
-    setShowToast('invite');
-    setTimeout(() => setShowToast(null), 3000);
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.trim() || isSending) return;
+
+    setIsSending(true);
+
+    try {
+      const response = await api.post('/team/invite', {
+        email: inviteEmail,
+        role: inviteRole,
+      });
+
+      // Add the new pending user to the table immediately
+      const newUser = response.data.user;
+      setTeam([
+        ...team,
+        { id: newUser.id.toString(), email: newUser.email, role: newUser.role, status: 'Pending' }
+      ]);
+
+      setInviteEmail('');
+      setShowToast('invite');
+      setTimeout(() => setShowToast(null), 3000);
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Gagal mengirim undangan.';
+      alert(message);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const confirmRevoke = async () => {
@@ -110,10 +128,7 @@ export default function TeamManagement({ mockUser }: { mockUser?: { role: string
     }
   };
 
-  const handleResend = (email: string) => {
-    setShowToast('resend');
-    setTimeout(() => setShowToast(null), 3000);
-  };
+
 
   // --- Carousel rendering logic ---
   const renderCarousel = () => {
@@ -147,7 +162,7 @@ export default function TeamManagement({ mockUser }: { mockUser?: { role: string
       }
       return (
         <div className={`${size} rounded-full flex items-center justify-center ${textSize} font-bold mb-4 border-4 bg-[var(--bg-secondary)] shadow-inner ${getRoleBorderColor(member.role)} ${member.color}`}>
-          {member.name.charAt(0).toUpperCase()}
+          {member.name ? member.name.charAt(0).toUpperCase() : '?'}
         </div>
       );
     };
@@ -160,7 +175,7 @@ export default function TeamManagement({ mockUser }: { mockUser?: { role: string
           <div className="flex flex-col items-center justify-center p-6 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-3xl shadow-xl w-56 md:w-64"
                style={{ transform: 'scale(1.15)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
             {renderAvatar(member)}
-            <h4 className="text-xl font-bold text-center leading-tight truncate w-full">{member.name}</h4>
+            <h4 className="text-xl font-bold text-center leading-tight truncate w-full">{member.name || 'Menunggu Konfirmasi'}</h4>
             <p className={`text-sm mt-1 font-medium ${member.color}`}>{member.role}</p>
           </div>
         </div>
@@ -242,7 +257,7 @@ export default function TeamManagement({ mockUser }: { mockUser?: { role: string
                 onClick={() => setActiveIndex(idx)}
               >
                 {renderAvatar(member)}
-                <h4 className="text-xl font-bold text-center leading-tight truncate w-full">{member.name}</h4>
+                <h4 className="text-xl font-bold text-center leading-tight truncate w-full">{member.name || 'Menunggu Konfirmasi'}</h4>
                 <p className={`text-sm mt-1 font-medium ${member.color}`}>
                   {member.role}
                 </p>
@@ -288,7 +303,7 @@ export default function TeamManagement({ mockUser }: { mockUser?: { role: string
           animate={{ opacity: 1, y: 0 }}
           className="bg-[var(--bg-primary)] p-6 md:p-8 rounded-2xl border border-[var(--border-color)] shadow-sm mb-8"
         >
-          <h3 className="text-lg font-bold mb-4 border-b border-[var(--border-color)] pb-3">Undang Anggota Baru</h3>
+          <h3 className="text-lg font-bold mb-4 border-b border-[var(--border-color)] pb-3">Daftarkan Email Anggota</h3>
           <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[var(--text-secondary)]">
@@ -315,10 +330,20 @@ export default function TeamManagement({ mockUser }: { mockUser?: { role: string
             </div>
             <button
               type="submit"
-              className="flex items-center justify-center px-6 py-3 bg-brand-yellow text-brand-black font-semibold rounded-xl hover:bg-brand-yellow-hover transition-colors shrink-0 whitespace-nowrap"
+              disabled={isSending}
+              className="flex items-center justify-center px-6 py-3 bg-brand-yellow text-brand-black font-semibold rounded-xl hover:bg-brand-yellow-hover transition-colors shrink-0 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-brand-yellow"
             >
-              <Send className="w-4 h-4 mr-2" />
-              Kirim Undangan
+              {isSending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Mengirim...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Daftarkan Akses
+                </>
+              )}
             </button>
           </form>
         </motion.div>
@@ -362,29 +387,18 @@ export default function TeamManagement({ mockUser }: { mockUser?: { role: string
                         </span>
                       </td>
                       <td className="py-4 px-6 text-right space-x-2">
-                         {member.status === 'Active' ? (
-                            member.role === 'SEO Manager' ? (
-                              <span className="text-sm font-medium text-[var(--text-secondary)] italic mr-4">Anda (Pemilik)</span>
-                            ) : (
-                              <button
-                                onClick={() => setMemberToRevoke({ id: member.id, email: member.email })}
-                                className="p-2 inline-flex items-center justify-center rounded-lg text-red-500 hover:bg-red-500/10 transition-colors border border-transparent hover:border-red-500/20"
-                                title="Cabut Akses"
-                              >
-                                <ShieldBan className="w-4 h-4 mr-1.5" />
-                                <span className="text-sm font-medium">Cabut</span>
-                              </button>
-                            )
-                         ) : (
+                         {member.role === 'SEO Manager' ? (
+                            <span className="text-sm font-medium text-[var(--text-secondary)] italic mr-4">Anda (Pemilik)</span>
+                          ) : (
                             <button
-                              onClick={() => handleResend(member.email)}
-                              className="p-2 inline-flex items-center justify-center rounded-lg text-blue-500 hover:bg-blue-500/10 transition-colors border border-transparent hover:border-blue-500/20"
-                              title="Kirim Ulang Undangan"
+                              onClick={() => setMemberToRevoke({ id: member.id, email: member.email })}
+                              className="p-2 inline-flex items-center justify-center rounded-lg text-red-500 hover:bg-red-500/10 transition-colors border border-transparent hover:border-red-500/20"
+                              title="Cabut Akses"
                             >
-                              <Send className="w-4 h-4 mr-1.5" />
-                              <span className="text-sm font-medium">Kirim Ulang</span>
+                              <ShieldBan className="w-4 h-4 mr-1.5" />
+                              <span className="text-sm font-medium">Cabut</span>
                             </button>
-                         )}
+                          )}
                       </td>
                     </tr>
                   ))
@@ -455,8 +469,7 @@ export default function TeamManagement({ mockUser }: { mockUser?: { role: string
            }`}>
              {showToast === 'revoke' ? <ShieldBan className="w-5 h-5 mr-2" /> : <CheckCircle2 className="w-5 h-5 mr-2" />}
              <span className="font-medium text-sm">
-               {showToast === 'invite' && 'Undangan berhasil dikirim!'}
-               {showToast === 'resend' && 'Undangan berhasil dikirim ulang!'}
+               {showToast === 'invite' && 'Email berhasil didaftarkan. Silakan minta anggota untuk mendaftar di halaman registrasi.'}
                {showToast === 'revoke' && 'Akses berhasil dicabut!'}
              </span>
            </div>

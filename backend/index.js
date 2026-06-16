@@ -33,6 +33,7 @@ const approvalRoutes = require('./routes/approvalRoutes');
 const archiveRoutes = require('./routes/archiveRoutes');
 const faqRoutes = require('./routes/faqRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const teamRoutes = require('./routes/teamRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -47,6 +48,7 @@ app.use('/api/approval', approvalRoutes);
 app.use('/api/archive', archiveRoutes);
 app.use('/api/faqs', faqRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/team', teamRoutes);
 
 app.get('/', (req, res) => {
   res.send('UNI-AISEO API is running');

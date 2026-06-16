@@ -36,6 +36,7 @@ interface WorkspaceProps {
     role: string;
     workspaceName?: string;
     workspaceBgUrl?: string;
+    profilePicture?: string | null;
   } | null;
   setMockUser?: React.Dispatch<React.SetStateAction<any>>;
   onLogout: () => void;
@@ -365,15 +366,27 @@ export default function Workspace({
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 className="flex items-center space-x-2 sm:space-x-3 p-1.5 hover:bg-[var(--bg-secondary)] rounded-xl transition-colors border border-transparent hover:border-[var(--border-color)]"
               >
-                <div className="w-8 h-8 rounded-full bg-brand-yellow text-brand-black flex items-center justify-center font-bold text-sm">
-                  {mockUser?.name?.charAt(0).toUpperCase() || "U"}
-                </div>
+                {mockUser?.profilePicture ? (
+                  <img
+                    src={mockUser.profilePicture}
+                    alt={mockUser.name}
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-brand-yellow text-brand-black flex items-center justify-center font-bold text-sm">
+                    {mockUser?.name?.charAt(0).toUpperCase() || "U"}
+                  </div>
+                )}
                 <div className="hidden sm:block text-left">
                   <div className="text-sm font-medium leading-none mb-1">
                     {mockUser?.name || "User"}
                   </div>
                   <div className="text-xs text-[var(--text-secondary)] leading-none">
-                    {mockUser?.role === "admin" ? "Administrator" : "Pro Plan"}
+                    {mockUser?.role === "admin" ? "Administrator" : 
+                     mockUser?.role === "manager" ? "SEO Manager" : 
+                     mockUser?.role === "analyst" ? "SEO Analyst" : 
+                     mockUser?.role === "writer" ? "Content Writer" : 
+                     mockUser?.role}
                   </div>
                 </div>
                 <ChevronDown

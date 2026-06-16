@@ -7,7 +7,7 @@ const SALT_ROUNDS = 10;
 
 /**
  * POST /api/auth/register
- * Registers a new user with a new workspace using a database transaction.
+ * Registers a new user with a new workspace or claims a pre-registered account.
  */
 const register = async (req, res) => {
   const { workspace_name, name, email, password } = req.body;
@@ -24,16 +24,57 @@ const register = async (req, res) => {
 
     // Check if email already exists
     const [existingUsers] = await connection.execute(
-      'SELECT id FROM users WHERE email = ?',
+      'SELECT id, status, role, workspace_id FROM users WHERE email = ?',
       [email]
     );
 
     if (existingUsers.length > 0) {
-      await connection.rollback();
-      connection.release();
-      return res.status(409).json({ message: 'Email sudah terdaftar. Silakan gunakan email lain.' });
+      const user = existingUsers[0];
+
+      // Condition C: Already Active
+      if (user.status === 'Aktif') {
+        await connection.rollback();
+        connection.release();
+        return res.status(400).json({ message: 'Email sudah terdaftar dan aktif.' });
+      }
+
+      // Condition A: User is Pre-registered/Claiming
+      if (user.status === 'Tertunda') {
+        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+        await connection.execute(
+          'UPDATE users SET name = ?, password = ?, status = ? WHERE email = ?',
+          [name, hashedPassword, 'Aktif', email]
+        );
+
+        // Fetch the workspace name for token payload and response
+        const [workspaceResult] = await connection.execute(
+          'SELECT name FROM workspaces WHERE id = ?',
+          [user.workspace_id]
+        );
+        const actualWorkspaceName = workspaceResult.length > 0 ? workspaceResult[0].name : workspace_name;
+
+        await connection.commit();
+        connection.release();
+
+        // Audit log (assuming logAudit handles it inside try/catch or async)
+        // await logAudit(user.id, 'Registrasi via Undangan (Claim Account)', null);
+
+        return res.status(201).json({
+          message: 'Registrasi berhasil! Akun Anda telah diaktifkan.',
+          user: {
+            id: user.id,
+            name,
+            email,
+            role: user.role,
+            workspace_id: user.workspace_id,
+            workspace_name: actualWorkspaceName,
+          },
+        });
+      }
     }
 
+    // Condition B: Normal Registration - SEO Manager
     // 1. Insert workspace
     const [workspaceResult] = await connection.execute(
       'INSERT INTO workspaces (name) VALUES (?)',
@@ -72,6 +113,7 @@ const register = async (req, res) => {
   }
 };
 
+
 /**
  * POST /api/auth/login
  * Authenticates a user and returns a JWT token with user profile data.
@@ -87,7 +129,7 @@ const login = async (req, res) => {
   try {
     // Fetch user with workspace info via JOIN
     const [users] = await pool.execute(
-      `SELECT u.id, u.name, u.email, u.password, u.role, u.status, u.workspace_id, w.name AS workspace_name
+      `SELECT u.id, u.name, u.email, u.password, u.role, u.status, u.workspace_id, u.profile_picture, w.background_image, w.name AS workspace_name
        FROM users u
        LEFT JOIN workspaces w ON u.workspace_id = w.id
        WHERE u.email = ?`,
@@ -137,6 +179,8 @@ const login = async (req, res) => {
         role: user.role,
         workspace_id: user.workspace_id,
         workspace_name: user.workspace_name,
+        profile_picture: user.profile_picture,
+        background_image: user.background_image,
       },
     });
   } catch (error) {
