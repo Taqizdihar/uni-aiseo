@@ -14,6 +14,8 @@ import {
   Trash2,
   X,
   CalendarDays,
+  Loader2,
+  ChevronDown,
 } from "lucide-react";
 import api from '../utils/api';
 
@@ -24,10 +26,39 @@ interface TaskData {
   status: "To Do" | "In Progress" | "Waiting Approval" | "Done";
   analyst_id: number | null;
   writer_id: number | null;
+  writer_id: number | null;
   analyst_name: string | null;
   writer_name: string | null;
+  analyst_profile?: string | null;
+  writer_profile?: string | null;
+  visual_image?: string | null;
   created_at: string;
   rejection_note?: string | null;
+}
+
+interface ExtendedTaskData extends TaskData {
+  visual?: {
+    text_ratio: string;
+    readability: string;
+    contrast_score: string;
+    recommendations: string;
+  } | null;
+  keywords?: {
+    keyword: string;
+    volume: string;
+    kd_percent: string;
+    intent: string;
+  }[] | null;
+  content?: {
+    content_draft: string;
+    focus_keyword: string;
+    seo_score: number;
+    readability_level: string;
+  } | null;
+  metatags?: {
+    meta_title: string;
+    meta_description: string;
+  } | null;
 }
 
 interface TeamMember {
@@ -57,8 +88,9 @@ export default function TaskBoard({
   const [isLoading, setIsLoading] = useState(true);
 
   // Detail Modal & Drag-and-Drop state
-  const [selectedTask, setSelectedTask] = useState<TaskData | null>(null);
+  const [selectedTask, setSelectedTask] = useState<ExtendedTaskData | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null);
   const [draggingOverColumn, setDraggingOverColumn] = useState<string | null>(null);
 
@@ -330,9 +362,18 @@ export default function TaskBoard({
                         draggable={role !== "writer"}
                         onDragStart={(e: any) => handleDragStart(e, task.id)}
                         onDragEnd={() => setDraggedTaskId(null)}
-                        onClick={() => {
-                          setSelectedTask(task);
+                        onClick={async () => {
+                          setSelectedTask(task as ExtendedTaskData);
                           setIsDetailModalOpen(true);
+                          setIsDetailLoading(true);
+                          try {
+                            const res = await api.get(`/tasks/${task.id}/details`);
+                            setSelectedTask(res.data);
+                          } catch (err) {
+                            console.error(err);
+                          } finally {
+                            setIsDetailLoading(false);
+                          }
                         }}
                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -353,6 +394,11 @@ export default function TaskBoard({
                           <div className="mb-3 px-2 py-1 bg-red-500/10 border border-red-500/20 text-red-500 rounded text-xs flex items-center">
                             <AlertCircle className="w-3 h-3 mr-1 shrink-0" />
                             <span className="truncate" title={task.rejection_note}>Revisi: {task.rejection_note}</span>
+                          </div>
+                        )}
+                        {task.visual_image && (
+                          <div className="mb-3 w-full h-32 rounded-lg overflow-hidden border border-[var(--border-color)]">
+                            <img src={`http://localhost:5000${task.visual_image}`} alt="Visual Preview" className="w-full h-full object-cover" />
                           </div>
                         )}
                         <p className="text-xs text-[var(--text-secondary)] mb-4 line-clamp-2 leading-relaxed">
@@ -388,10 +434,30 @@ export default function TaskBoard({
                               </div>
                             )}
                           </div>
-                          <div className="text-xs font-semibold text-[var(--text-secondary)] truncate max-w-[140px]">
-                            {task.analyst_name || task.writer_name
-                              ? `${task.analyst_name || '-'} & ${task.writer_name || '-'}`
-                              : 'Belum ditugaskan'}
+                          <div className="flex -space-x-2">
+                            {task.analyst_name && (
+                              <div className="w-6 h-6 rounded-full border-2 border-[var(--bg-primary)] bg-blue-500/20 text-blue-500 flex items-center justify-center text-[10px] font-bold overflow-hidden" title={`Analyst: ${task.analyst_name}`}>
+                                {task.analyst_profile ? (
+                                  <img src={`http://localhost:5000${task.analyst_profile}`} alt={task.analyst_name} className="w-full h-full object-cover" />
+                                ) : (
+                                  task.analyst_name.charAt(0).toUpperCase()
+                                )}
+                              </div>
+                            )}
+                            {task.writer_name && (
+                              <div className="w-6 h-6 rounded-full border-2 border-[var(--bg-primary)] bg-emerald-500/20 text-emerald-500 flex items-center justify-center text-[10px] font-bold overflow-hidden" title={`Writer: ${task.writer_name}`}>
+                                {task.writer_profile ? (
+                                  <img src={`http://localhost:5000${task.writer_profile}`} alt={task.writer_name} className="w-full h-full object-cover" />
+                                ) : (
+                                  task.writer_name.charAt(0).toUpperCase()
+                                )}
+                              </div>
+                            )}
+                            {!task.analyst_name && !task.writer_name && (
+                              <div className="text-[10px] font-medium text-[var(--text-secondary)]">
+                                Belum ditugaskan
+                              </div>
+                            )}
                           </div>
                         </div>
                       </motion.div>
@@ -454,6 +520,16 @@ export default function TaskBoard({
                 </button>
               </div>
 
+              {selectedTask.rejection_note && (
+                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-500 flex items-start">
+                  <AlertCircle className="w-5 h-5 mr-3 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="font-bold block mb-1">Catatan Revisi Manager:</strong>
+                    <p className="text-sm">{selectedTask.rejection_note}</p>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-6">
                 <div>
                   <h4 className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
@@ -472,8 +548,12 @@ export default function TaskBoard({
                     <div className="bg-[var(--bg-secondary)]/50 p-4 rounded-xl border border-[var(--border-color)]">
                       <p className="text-xs text-[var(--text-secondary)] mb-1">SEO Analyst</p>
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-500 text-xs font-bold">
-                          {selectedTask.analyst_name ? selectedTask.analyst_name.charAt(0).toUpperCase() : "?"}
+                        <div className="w-7 h-7 rounded-full border-2 border-[var(--bg-primary)] bg-blue-500/20 text-blue-500 flex items-center justify-center text-xs font-bold overflow-hidden">
+                          {selectedTask.analyst_profile ? (
+                            <img src={`http://localhost:5000${selectedTask.analyst_profile}`} alt={selectedTask.analyst_name || "Analyst"} className="w-full h-full object-cover" />
+                          ) : (
+                            selectedTask.analyst_name ? selectedTask.analyst_name.charAt(0).toUpperCase() : "?"
+                          )}
                         </div>
                         <span className="font-medium text-sm">{selectedTask.analyst_name || "Belum ditugaskan"}</span>
                       </div>
@@ -481,14 +561,107 @@ export default function TaskBoard({
                     <div className="bg-[var(--bg-secondary)]/50 p-4 rounded-xl border border-[var(--border-color)]">
                       <p className="text-xs text-[var(--text-secondary)] mb-1">Content Writer</p>
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 text-xs font-bold">
-                          {selectedTask.writer_name ? selectedTask.writer_name.charAt(0).toUpperCase() : "?"}
+                        <div className="w-7 h-7 rounded-full border-2 border-[var(--bg-primary)] bg-emerald-500/20 text-emerald-500 flex items-center justify-center text-xs font-bold overflow-hidden">
+                          {selectedTask.writer_profile ? (
+                            <img src={`http://localhost:5000${selectedTask.writer_profile}`} alt={selectedTask.writer_name || "Writer"} className="w-full h-full object-cover" />
+                          ) : (
+                            selectedTask.writer_name ? selectedTask.writer_name.charAt(0).toUpperCase() : "?"
+                          )}
                         </div>
                         <span className="font-medium text-sm">{selectedTask.writer_name || "Belum ditugaskan"}</span>
                       </div>
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-[var(--border-color)]">
+                {isDetailLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-8 h-8 animate-spin text-brand-yellow" />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Visual AI Section */}
+                    {selectedTask.visual && (
+                      <details className="group bg-[var(--bg-secondary)]/30 border border-[var(--border-color)] rounded-xl overflow-hidden">
+                        <summary className="flex items-center justify-between p-4 cursor-pointer font-bold select-none group-open:border-b group-open:border-[var(--border-color)] hover:bg-[var(--bg-secondary)] transition-colors">
+                          <span>Analisis Visual AI</span>
+                          <ChevronDown className="w-5 h-5 transition-transform group-open:rotate-180 text-[var(--text-secondary)]" />
+                        </summary>
+                        <div className="p-4 bg-[var(--bg-primary)] grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                          <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
+                            <span className="block text-[var(--text-secondary)] text-xs mb-1">Rasio Teks/Gambar</span>
+                            <strong className="text-brand-yellow">{selectedTask.visual.text_ratio}</strong>
+                          </div>
+                          <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
+                            <span className="block text-[var(--text-secondary)] text-xs mb-1">Keterbacaan</span>
+                            <strong className="text-blue-400">{selectedTask.visual.readability}</strong>
+                          </div>
+                          <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
+                            <span className="block text-[var(--text-secondary)] text-xs mb-1">Skor Kontras</span>
+                            <strong className="text-green-400">{selectedTask.visual.contrast_score}</strong>
+                          </div>
+                        </div>
+                      </details>
+                    )}
+
+                    {/* Keywords Section */}
+                    {selectedTask.keywords && selectedTask.keywords.length > 0 && (
+                      <details className="group bg-[var(--bg-secondary)]/30 border border-[var(--border-color)] rounded-xl overflow-hidden">
+                        <summary className="flex items-center justify-between p-4 cursor-pointer font-bold select-none group-open:border-b group-open:border-[var(--border-color)] hover:bg-[var(--bg-secondary)] transition-colors">
+                          <span>Target Keywords</span>
+                          <ChevronDown className="w-5 h-5 transition-transform group-open:rotate-180 text-[var(--text-secondary)]" />
+                        </summary>
+                        <div className="p-4 bg-[var(--bg-primary)] flex flex-wrap gap-2">
+                          {selectedTask.keywords.map((kw, idx) => (
+                            <span key={idx} className="px-3 py-1 bg-brand-yellow/10 text-brand-yellow border border-brand-yellow/20 rounded-full text-xs font-semibold">
+                              {kw.keyword}
+                            </span>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+
+                    {/* Content & Meta Section */}
+                    {(selectedTask.content || selectedTask.metatags) && (
+                      <details className="group bg-[var(--bg-secondary)]/30 border border-[var(--border-color)] rounded-xl overflow-hidden">
+                        <summary className="flex items-center justify-between p-4 cursor-pointer font-bold select-none group-open:border-b group-open:border-[var(--border-color)] hover:bg-[var(--bg-secondary)] transition-colors">
+                          <span>Aset Konten & Meta Tags</span>
+                          <ChevronDown className="w-5 h-5 transition-transform group-open:rotate-180 text-[var(--text-secondary)]" />
+                        </summary>
+                        <div className="p-4 bg-[var(--bg-primary)] space-y-4">
+                          {selectedTask.content && (
+                            <div className="flex items-center justify-between p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
+                              <span className="text-sm text-[var(--text-secondary)] font-medium">Skor SEO (Draft)</span>
+                              <span className={`text-lg font-bold ${
+                                selectedTask.content.seo_score >= 80 ? 'text-green-500' :
+                                selectedTask.content.seo_score >= 50 ? 'text-yellow-500' : 'text-red-500'
+                              }`}>{selectedTask.content.seo_score}/100</span>
+                            </div>
+                          )}
+                          
+                          {selectedTask.metatags && (
+                            <div className="space-y-3">
+                              <div>
+                                <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Meta Title</label>
+                                <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] text-sm text-blue-400 font-medium break-words">
+                                  {selectedTask.metatags.meta_title}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Meta Description</label>
+                                <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] text-sm text-[var(--text-secondary)] break-words">
+                                  {selectedTask.metatags.meta_description}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="mt-8 flex justify-between items-center">

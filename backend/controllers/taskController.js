@@ -7,10 +7,14 @@ exports.getTasks = async (req, res) => {
     const query = `
       SELECT t.*, 
              a.name as analyst_name, 
-             w.name as writer_name 
+             a.profile_picture as analyst_profile,
+             w.name as writer_name, 
+             w.profile_picture as writer_profile,
+             v.image_url as visual_image
       FROM tasks t
       LEFT JOIN users a ON t.analyst_id = a.id
       LEFT JOIN users w ON t.writer_id = w.id
+      LEFT JOIN task_visuals v ON t.id = v.task_id
       WHERE t.workspace_id = ?
       ORDER BY t.created_at DESC
     `;
@@ -18,6 +22,100 @@ exports.getTasks = async (req, res) => {
     res.json(rows);
   } catch (error) {
     console.error('Error fetching tasks:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+exports.getActiveTasks = async (req, res) => {
+  try {
+    const workspaceId = req.user.workspace_id;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    let query = `
+      SELECT id, title, status 
+      FROM tasks 
+      WHERE workspace_id = ? AND status IN ('In Progress', 'Waiting Approval')
+    `;
+    const params = [workspaceId];
+
+    if (userRole === 'Content Writer') {
+      query += ` AND writer_id = ?`;
+      params.push(userId);
+    }
+
+    query += ` ORDER BY created_at DESC`;
+
+    const [rows] = await pool.query(query, params);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching active tasks:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+exports.getTaskDetails = async (req, res) => {
+  try {
+    const workspaceId = req.user.workspace_id;
+    const taskId = req.params.id;
+
+    // 1. Core Task Details
+    const [taskRows] = await pool.query(
+      `SELECT t.*, 
+              a.name as analyst_name, 
+              a.profile_picture as analyst_profile,
+              w.name as writer_name,
+              w.profile_picture as writer_profile
+       FROM tasks t
+       LEFT JOIN users a ON t.analyst_id = a.id
+       LEFT JOIN users w ON t.writer_id = w.id
+       WHERE t.id = ? AND t.workspace_id = ?`,
+      [taskId, workspaceId]
+    );
+
+    if (taskRows.length === 0) {
+      return res.status(404).json({ message: 'Tugas tidak ditemukan.' });
+    }
+
+    const task = taskRows[0];
+
+    // 2. Task Visuals
+    const [visualRows] = await pool.query(
+      'SELECT text_ratio, readability, contrast_score, recommendations FROM task_visuals WHERE task_id = ?',
+      [taskId]
+    );
+    const visual = visualRows.length > 0 ? visualRows[0] : null;
+
+    // 3. Task Keywords
+    const [keywordRows] = await pool.query(
+      'SELECT keyword, volume, kd_percent, intent FROM task_keywords WHERE task_id = ? ORDER BY id ASC',
+      [taskId]
+    );
+    const keywords = keywordRows.length > 0 ? keywordRows : null;
+
+    // 4. Task Contents
+    const [contentRows] = await pool.query(
+      'SELECT content_draft, focus_keyword, seo_score, readability_level FROM task_contents WHERE task_id = ?',
+      [taskId]
+    );
+    const content = contentRows.length > 0 ? contentRows[0] : null;
+
+    // 5. Task MetaTags
+    const [metaRows] = await pool.query(
+      'SELECT meta_title, meta_description FROM task_metatags WHERE task_id = ?',
+      [taskId]
+    );
+    const metatags = metaRows.length > 0 ? metaRows[0] : null;
+
+    res.json({
+      ...task,
+      visual,
+      keywords,
+      content,
+      metatags
+    });
+  } catch (error) {
+    console.error('Error fetching task details:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

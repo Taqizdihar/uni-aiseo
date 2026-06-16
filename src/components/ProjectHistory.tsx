@@ -1,22 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, History, Calendar, Star, FileText, X, LayoutTemplate, MessageSquare, ExternalLink, Link2, Download, AlertCircle, Loader2 } from 'lucide-react';
+import { Search, History, Calendar, Star, FileText, X, LayoutTemplate, AlertCircle, Loader2 } from 'lucide-react';
 import api from '../utils/api';
 
 interface ArchiveData {
-  id: string;
-  title: string;
-  description: string;
-  analyst_name: string;
-  writer_name: string;
-  focus_keyword: string;
-  seo_score: number;
-  meta_title: string;
-  meta_description: string;
-  content_draft: string;
-  readability_level: string;
-  feedback: string[];
-  completed_at: string;
+  taskId: string | number;
+  campaignName: string;
+  completionDate: string;
+  finalScore: number | string | null;
+  focusKeyword: string | null;
+  contentDraft: string | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  analystName: string | null;
+  writerName: string | null;
 }
 
 export default function ProjectHistory() {
@@ -43,11 +40,11 @@ export default function ProjectHistory() {
   }, []);
 
   const filteredArchives = archives.filter(p => 
-    p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.description.toLowerCase().includes(searchTerm.toLowerCase())
+    p.campaignName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('id-ID', {
       day: 'numeric',
       month: 'long',
@@ -105,27 +102,26 @@ export default function ProjectHistory() {
             </thead>
             <tbody className="divide-y divide-[var(--border-color)]">
               {filteredArchives.map((project) => (
-                <tr key={project.id} className="hover:bg-[var(--bg-secondary)]/30 transition-colors">
+                <tr key={project.taskId} className="hover:bg-[var(--bg-secondary)]/30 transition-colors">
                   <td className="p-4">
-                    <p className="font-bold text-[var(--text-primary)]">{project.title}</p>
-                    <p className="text-xs text-[var(--text-secondary)] line-clamp-1 max-w-sm mt-1">{project.description}</p>
+                    <p className="font-bold text-[var(--text-primary)]">{project.campaignName}</p>
                   </td>
                   <td className="p-4 text-sm text-[var(--text-primary)]">
-                    <span className="block">{project.analyst_name}</span>
-                    <span className="block text-[var(--text-secondary)] text-xs mt-0.5">{project.writer_name}</span>
+                    <span className="block">{project.analystName || 'Tidak ada'} &amp; {project.writerName || 'Tidak ada'}</span>
                   </td>
                   <td className="p-4">
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
-                      project.seo_score >= 80 ? 'bg-green-500/10 text-green-500' :
-                      project.seo_score >= 60 ? 'bg-yellow-500/10 text-yellow-500' :
+                      typeof project.finalScore === 'number' && project.finalScore >= 80 ? 'bg-green-500/10 text-green-500' :
+                      typeof project.finalScore === 'number' && project.finalScore >= 60 ? 'bg-yellow-500/10 text-yellow-500' :
+                      !project.finalScore ? 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]' :
                       'bg-red-500/10 text-red-500'
                     }`}>
                       <Star className="w-3.5 h-3.5 mr-1" />
-                      {project.seo_score}/100
+                      {project.finalScore ? `${project.finalScore}/100` : 'N/A'}
                     </span>
                   </td>
                   <td className="p-4 text-sm text-[var(--text-secondary)] whitespace-nowrap">
-                    {formatDate(project.completed_at)}
+                    {formatDate(project.completionDate)}
                   </td>
                   <td className="p-4 text-right">
                     <button
@@ -141,7 +137,7 @@ export default function ProjectHistory() {
             </tbody>
           </table>
           
-          {filteredArchives.length === 0 && (
+          {(!archives || archives.length === 0) && (
             <div className="h-64 flex flex-col items-center justify-center p-8 text-center bg-[var(--bg-primary)]">
               <div className="w-16 h-16 rounded-full bg-[var(--bg-secondary)] flex items-center justify-center mb-4">
                 <Search className="w-8 h-8 text-[var(--text-secondary)] opacity-50" />
@@ -177,10 +173,10 @@ export default function ProjectHistory() {
                     <FileText className="w-6 h-6 text-brand-yellow" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-display font-bold">Laporan Akhir: {selectedProject.title}</h3>
+                    <h3 className="text-xl font-display font-bold">Laporan Akhir: {selectedProject.campaignName}</h3>
                     <p className="text-sm text-[var(--text-secondary)] flex items-center mt-1">
                       <Calendar className="w-4 h-4 mr-1" />
-                      Disetujui pada {formatDate(selectedProject.completed_at)}
+                      Disetujui pada {formatDate(selectedProject.completionDate)}
                     </p>
                   </div>
                 </div>
@@ -197,15 +193,15 @@ export default function ProjectHistory() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-[var(--bg-secondary)] p-4 rounded-xl border border-[var(--border-color)]">
                     <p className="text-xs text-[var(--text-secondary)] font-bold uppercase tracking-wider mb-1">Skor SEO</p>
-                    <p className="text-2xl font-bold text-green-500">{selectedProject.seo_score}</p>
+                    <p className={`text-2xl font-bold ${!selectedProject.finalScore ? 'text-[var(--text-secondary)]' : 'text-green-500'}`}>{selectedProject.finalScore || 'N/A'}</p>
                   </div>
                   <div className="bg-[var(--bg-secondary)] p-4 rounded-xl border border-[var(--border-color)]">
                     <p className="text-xs text-[var(--text-secondary)] font-bold uppercase tracking-wider mb-1">Target Keyword</p>
-                    <p className="text-base font-bold truncate" title={selectedProject.focus_keyword}>{selectedProject.focus_keyword}</p>
+                    <input type="text" readOnly value={selectedProject.focusKeyword || 'Tidak ada data'} className="w-full bg-transparent text-base font-bold truncate focus:outline-none" title={selectedProject.focusKeyword || 'Tidak ada data'} />
                   </div>
                   <div className="bg-[var(--bg-secondary)] p-4 rounded-xl border border-[var(--border-color)]">
                     <p className="text-xs text-[var(--text-secondary)] font-bold uppercase tracking-wider mb-1">Readability</p>
-                    <p className="text-base font-bold text-blue-500">{selectedProject.readability_level}</p>
+                    <p className="text-base font-bold text-blue-500">N/A</p> {/* Readability isn't strictly requested to be mapped from root object, keeping N/A or omitting */}
                   </div>
                   <div className="bg-[var(--bg-secondary)] p-4 rounded-xl border border-[var(--border-color)]">
                     <p className="text-xs text-[var(--text-secondary)] font-bold uppercase tracking-wider mb-1">Status</p>
@@ -225,11 +221,11 @@ export default function ProjectHistory() {
                     <div className="bg-[var(--bg-secondary)] p-5 rounded-xl border border-[var(--border-color)] space-y-4">
                       <div>
                         <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">Meta Title</span>
-                        <p className="text-blue-500 font-medium leading-tight">{selectedProject.meta_title}</p>
+                        <input type="text" readOnly value={selectedProject.metaTitle || 'Tidak ada data'} className="w-full p-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-blue-500 font-medium focus:outline-none" />
                       </div>
                       <div>
                         <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">Meta Description</span>
-                        <p className="text-[var(--text-primary)] text-sm">{selectedProject.meta_description}</p>
+                        <textarea readOnly value={selectedProject.metaDescription || 'Tidak ada data'} className="w-full p-3 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] min-h-[80px] resize-none focus:outline-none" />
                       </div>
                     </div>
                   </div>
@@ -243,11 +239,11 @@ export default function ProjectHistory() {
                     <div className="bg-[var(--bg-secondary)] p-5 rounded-xl border border-[var(--border-color)] space-y-4">
                       <div>
                         <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">SEO Analyst</span>
-                        <p className="font-medium">{selectedProject.analyst_name}</p>
+                        <p className="font-medium">{selectedProject.analystName || 'Tidak ada data'}</p>
                       </div>
                       <div>
                         <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">Content Writer</span>
-                        <p className="font-medium">{selectedProject.writer_name}</p>
+                        <p className="font-medium">{selectedProject.writerName || 'Tidak ada data'}</p>
                       </div>
                     </div>
                   </div>
@@ -259,13 +255,14 @@ export default function ProjectHistory() {
                     <FileText className="w-5 h-5 mr-2 text-brand-yellow" />
                     Draf Konten Final
                   </h4>
-                  <div className="bg-[var(--bg-secondary)] p-6 rounded-xl border border-[var(--border-color)] text-[var(--text-primary)] prose prose-invert max-w-none">
-                    <div className="whitespace-pre-wrap leading-relaxed text-sm">
-                      {selectedProject.content_draft}
-                    </div>
+                  <div className="bg-[var(--bg-secondary)] p-6 rounded-xl border border-[var(--border-color)]">
+                    <textarea 
+                      readOnly 
+                      value={selectedProject.contentDraft || 'Tidak ada data'} 
+                      className="w-full p-4 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] min-h-[300px] resize-none focus:outline-none whitespace-pre-wrap leading-relaxed" 
+                    />
                   </div>
                 </div>
-
               </div>
 
             </motion.div>

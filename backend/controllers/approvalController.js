@@ -72,7 +72,10 @@ exports.approveTask = async (req, res) => {
     );
 
     // Notifications
-    const notifMessage = `Selamat! Draf untuk "${title}" telah disetujui oleh Manager dan diarsipkan.`;
+    let notifMessage = `Selamat! Draf untuk "${title}" telah disetujui oleh Manager dan diarsipkan.`;
+    if (notifMessage.length > 255) {
+      notifMessage = notifMessage.substring(0, 252) + '...';
+    }
     const notifications = [];
     if (writer_id) {
       notifications.push([workspaceId, writer_id, notifMessage, false]);
@@ -126,7 +129,10 @@ exports.rejectTask = async (req, res) => {
     );
 
     if (writer_id) {
-      const notifMessage = `Draf "${title}" membutuhkan revisi. Catatan Manager: ${rejection_note}`;
+      let notifMessage = `Draf "${title}" membutuhkan revisi. Catatan Manager: ${rejection_note}`;
+      if (notifMessage.length > 255) {
+        notifMessage = notifMessage.substring(0, 252) + '...';
+      }
       await pool.query(
         'INSERT INTO notifications (workspace_id, user_id, message, is_read) VALUES (?, ?, ?, ?)',
         [workspaceId, writer_id, notifMessage, false]

@@ -48,7 +48,7 @@ export default function AIMetaTagGenerator({ setIsLoading }: { setIsLoading: (va
   useEffect(() => {
     const fetchTasks = async () => {
       try {
-        const res = await api.get('/visual/active-tasks');
+        const res = await api.get('/tasks/active');
         setActiveTasks(res.data);
         if (res.data.length > 0) {
           setSelectedTaskId(res.data[0].id.toString());
