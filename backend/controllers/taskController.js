@@ -187,7 +187,79 @@ exports.getDashboardMetrics = async (req, res) => {
     `, [workspaceId]);
     const avgSeoScore = scoreRows[0].avgScore ? Math.round(scoreRows[0].avgScore) : 0;
 
-    res.json({ totalProjects, totalTeam, avgSeoScore });
+    // --- Chart Data ---
+
+    // 1. Content Optimization Status (Donut Chart)
+    const [optRows] = await pool.query(`
+      SELECT 
+        SUM(CASE WHEN tc.seo_score > 80 THEN 1 ELSE 0 END) as optimized,
+        SUM(CASE WHEN tc.seo_score >= 50 AND tc.seo_score <= 80 THEN 1 ELSE 0 END) as needs_fix,
+        SUM(CASE WHEN tc.seo_score < 50 THEN 1 ELSE 0 END) as critical,
+        COUNT(*) as total
+      FROM task_contents tc
+      JOIN tasks t ON tc.task_id = t.id
+      WHERE t.workspace_id = ?
+    `, [workspaceId]);
+
+    const optTotal = optRows[0].total || 0;
+    const optimizationData = optTotal > 0 ? [
+      { name: "Dioptimalkan", value: Math.round((optRows[0].optimized / optTotal) * 100), color: "#fad02c" },
+      { name: "Perlu Perbaikan", value: Math.round((optRows[0].needs_fix / optTotal) * 100), color: "#e0b820" },
+      { name: "Kritis", value: Math.round((optRows[0].critical / optTotal) * 100), color: "#ff4444" },
+    ] : [
+      { name: "Dioptimalkan", value: 0, color: "#fad02c" },
+      { name: "Perlu Perbaikan", value: 0, color: "#e0b820" },
+      { name: "Kritis", value: 0, color: "#ff4444" },
+    ];
+
+    // 2. Performance Trend (Line Chart) - avg seo_score grouped by week over last 4 weeks
+    const [trendRows] = await pool.query(`
+      SELECT 
+        YEARWEEK(t.updated_at, 1) as yw,
+        ROUND(AVG(tc.seo_score)) as score,
+        MIN(DATE(t.updated_at)) as week_start
+      FROM task_contents tc
+      JOIN tasks t ON tc.task_id = t.id
+      WHERE t.workspace_id = ? AND t.updated_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY yw
+      ORDER BY yw ASC
+      LIMIT 4
+    `, [workspaceId]);
+
+    const performanceData = trendRows.length > 0
+      ? trendRows.map((r, i) => ({ day: `W${i + 1}`, score: r.score || 0 }))
+      : [{ day: "W1", score: 0 }, { day: "W2", score: 0 }, { day: "W3", score: 0 }, { day: "W4", score: 0 }];
+
+    // 3. Keywords Generated (Bar Chart) - count per week over last 4 weeks
+    const [kwRows] = await pool.query(`
+      SELECT
+        YEARWEEK(tk.created_at, 1) as yw,
+        COUNT(*) as generated
+      FROM task_keywords tk
+      JOIN tasks t ON tk.task_id = t.id
+      WHERE t.workspace_id = ? AND tk.created_at >= DATE_SUB(NOW(), INTERVAL 28 DAY)
+      GROUP BY yw
+      ORDER BY yw ASC
+      LIMIT 4
+    `, [workspaceId]);
+
+    const keywordData = kwRows.length > 0
+      ? kwRows.map((r, i) => ({ week: `Minggu ${i + 1}`, generated: r.generated || 0 }))
+      : [
+          { week: "Minggu 1", generated: 0 },
+          { week: "Minggu 2", generated: 0 },
+          { week: "Minggu 3", generated: 0 },
+          { week: "Minggu 4", generated: 0 },
+        ];
+
+    res.json({
+      totalProjects,
+      totalTeam,
+      avgSeoScore,
+      optimizationData,
+      performanceData,
+      keywordData,
+    });
   } catch (error) {
     console.error('Error fetching dashboard metrics:', error);
     res.status(500).json({ message: 'Internal server error' });

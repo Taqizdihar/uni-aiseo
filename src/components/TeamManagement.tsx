@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, UserPlus, Trash2, Send, CheckCircle2, ShieldBan, ShieldAlert, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Mail, UserPlus, Trash2, Send, CheckCircle2, ShieldBan, ShieldAlert, ChevronLeft, ChevronRight, X, Loader2 } from 'lucide-react';
 import api from '../utils/api';
 
 interface TeamMember {
@@ -10,43 +10,72 @@ interface TeamMember {
   status: 'Active' | 'Pending';
 }
 
+interface VisualMember {
+  id: string;
+  name: string;
+  role: string;
+  profile_picture: string | null;
+  color: string;
+}
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+function getRoleColor(role: string): string {
+  if (role === 'SEO Manager') return 'text-brand-yellow';
+  if (role === 'SEO Analyst') return 'text-blue-500';
+  return 'text-emerald-500';
+}
+
+function getRoleBorderColor(role: string): string {
+  if (role === 'SEO Manager') return 'border-brand-yellow/30';
+  if (role === 'SEO Analyst') return 'border-blue-500/30';
+  return 'border-emerald-500/30';
+}
+
 export default function TeamManagement({ mockUser }: { mockUser?: { role: string; name: string; workspaceName?: string; workspaceBgUrl?: string; email?: string } | null }) {
   const workspaceName = mockUser?.workspaceName || 'UMKM Maju Jaya';
   const workspaceBgUrl = mockUser?.workspaceBgUrl || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2850&q=80';
   
   const [team, setTeam] = useState<TeamMember[]>([]);
+  const [visualTeam, setVisualTeam] = useState<VisualMember[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('SEO Analyst');
   const [showToast, setShowToast] = useState<'invite' | 'resend' | 'revoke' | null>(null);
   const [memberToRevoke, setMemberToRevoke] = useState<{ id: string; email: string } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
     const fetchTeam = async () => {
       try {
         const response = await api.get('/users/team');
-        setTeam(response.data.map((user: any) => ({
+        const data = response.data;
+        
+        setTeam(data.map((user: any) => ({
           id: user.id.toString(),
           email: user.email,
           role: user.role,
           status: user.status === 'Aktif' ? 'Active' : 'Pending'
         })));
+
+        // Build visual team from real data
+        const visual: VisualMember[] = data.map((user: any) => ({
+          id: user.id.toString(),
+          name: user.name,
+          role: user.role,
+          profile_picture: user.profile_picture || null,
+          color: getRoleColor(user.role),
+        }));
+        setVisualTeam(visual);
       } catch (error) {
         console.error('Error fetching team:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchTeam();
   }, []);
-
-  // Mock visual carousel data
-  const visualTeam = [
-    { id: '1', name: mockUser?.name || 'Siti Rahmawati', role: 'SEO Manager', avatar: (mockUser?.name?.charAt(0) || 'S').toUpperCase(), color: 'text-brand-yellow' },
-    { id: 'A1', name: 'Andi Pratama', role: 'SEO Analyst', avatar: 'AP', color: 'text-blue-500' },
-    { id: 'W1', name: 'Budi Santoso', role: 'Content Writer', avatar: 'BS', color: 'text-emerald-500' },
-    { id: 'A2', name: 'Rina Kusuma', role: 'SEO Analyst', avatar: 'RK', color: 'text-blue-500' },
-    { id: 'W2', name: 'Dewi Lestari', role: 'Content Writer', avatar: 'DL', color: 'text-emerald-500' },
-  ];
-
-  const [activeIndex, setActiveIndex] = useState(0);
 
   const handlePrev = () => setActiveIndex((prev) => (prev - 1 + visualTeam.length) % visualTeam.length);
   const handleNext = () => setActiveIndex((prev) => (prev + 1) % visualTeam.length);
@@ -70,6 +99,7 @@ export default function TeamManagement({ mockUser }: { mockUser?: { role: string
       try {
         await api.delete(`/users/${memberToRevoke.id}`);
         setTeam(team.filter(member => member.id !== memberToRevoke.id));
+        setVisualTeam(visualTeam.filter(m => m.id !== memberToRevoke.id));
         setMemberToRevoke(null);
         setShowToast('revoke');
         setTimeout(() => setShowToast(null), 3000);
@@ -83,6 +113,145 @@ export default function TeamManagement({ mockUser }: { mockUser?: { role: string
   const handleResend = (email: string) => {
     setShowToast('resend');
     setTimeout(() => setShowToast(null), 3000);
+  };
+
+  // --- Carousel rendering logic ---
+  const renderCarousel = () => {
+    if (isLoading) {
+      return (
+        <div className="h-[320px] flex items-center justify-center">
+          <Loader2 className="w-10 h-10 animate-spin text-brand-yellow" />
+        </div>
+      );
+    }
+
+    if (visualTeam.length === 0) {
+      return (
+        <div className="h-[320px] flex items-center justify-center">
+          <p className="text-[var(--text-secondary)]">Belum ada anggota tim.</p>
+        </div>
+      );
+    }
+
+    const showNav = visualTeam.length >= 2;
+
+    const renderAvatar = (member: VisualMember, size: string = 'w-24 h-24', textSize: string = 'text-3xl') => {
+      if (member.profile_picture) {
+        return (
+          <img
+            src={`${API_BASE}${member.profile_picture}`}
+            alt={member.name}
+            className={`${size} rounded-full object-cover border-4 mb-4 shadow-inner ${getRoleBorderColor(member.role)}`}
+          />
+        );
+      }
+      return (
+        <div className={`${size} rounded-full flex items-center justify-center ${textSize} font-bold mb-4 border-4 bg-[var(--bg-secondary)] shadow-inner ${getRoleBorderColor(member.role)} ${member.color}`}>
+          {member.name.charAt(0).toUpperCase()}
+        </div>
+      );
+    };
+
+    // Single member: centered, no nav
+    if (visualTeam.length === 1) {
+      const member = visualTeam[0];
+      return (
+        <div className="relative w-full h-[320px] flex items-center justify-center">
+          <div className="flex flex-col items-center justify-center p-6 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-3xl shadow-xl w-56 md:w-64"
+               style={{ transform: 'scale(1.15)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            {renderAvatar(member)}
+            <h4 className="text-xl font-bold text-center leading-tight truncate w-full">{member.name}</h4>
+            <p className={`text-sm mt-1 font-medium ${member.color}`}>{member.role}</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Two members: show nav, position center and right
+    // Three+: full infinite carousel
+    return (
+      <div className="relative w-full h-[320px] flex items-center justify-center">
+        {/* Nav Buttons */}
+        {showNav && (
+          <>
+            <button 
+              onClick={handlePrev}
+              className="absolute left-0 md:left-12 z-20 w-12 h-12 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-lg flex items-center justify-center hover:bg-brand-yellow hover:text-brand-black transition-colors"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <button 
+              onClick={handleNext}
+              className="absolute right-0 md:right-12 z-20 w-12 h-12 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-lg flex items-center justify-center hover:bg-brand-yellow hover:text-brand-black transition-colors"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          </>
+        )}
+
+        {/* Carousel Items */}
+        <div className="relative w-full max-w-3xl h-full flex items-center justify-center pointer-events-none">
+          {visualTeam.map((member, idx) => {
+            const totalLen = visualTeam.length;
+            const offset = ((idx - activeIndex + totalLen + Math.floor(totalLen / 2)) % totalLen) - Math.floor(totalLen / 2);
+            
+            const isActive = offset === 0;
+            
+            let translateX = 0;
+            let scale = 1;
+            let opacity = 1;
+
+            if (offset === -1) {
+              translateX = -180;
+              scale = 0.85;
+              opacity = 0.6;
+            } else if (offset === 1) {
+              translateX = 180;
+              scale = 0.85;
+              opacity = 0.6;
+            } else if (offset === 0) {
+              translateX = 0;
+              scale = 1.15;
+              opacity = 1;
+            } else if (offset === -2) {
+              translateX = -300;
+              scale = 0.6;
+              opacity = 0;
+            } else {
+              translateX = 300;
+              scale = 0.6;
+              opacity = 0;
+            }
+
+            // Adjust tight spacing on mobile
+            const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+            if (isMobile) {
+               translateX = translateX * 0.6; 
+            }
+
+            return (
+              <div 
+                key={member.id}
+                className="absolute pointer-events-auto transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] flex flex-col items-center justify-center p-6 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-3xl shadow-xl w-56 md:w-64"
+                style={{ 
+                  transform: `translateX(${translateX}px) scale(${scale})`, 
+                  opacity, 
+                  zIndex: isActive ? 10 : 5,
+                  boxShadow: isActive ? '0 25px 50px -12px rgba(0, 0, 0, 0.25)' : 'none'
+                }}
+                onClick={() => setActiveIndex(idx)}
+              >
+                {renderAvatar(member)}
+                <h4 className="text-xl font-bold text-center leading-tight truncate w-full">{member.name}</h4>
+                <p className={`text-sm mt-1 font-medium ${member.color}`}>
+                  {member.role}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -108,90 +277,8 @@ export default function TeamManagement({ mockUser }: { mockUser?: { role: string
             {workspaceName}
           </h1>
 
-          {/* Interactive Infinite Team Carousel */}
-          <div className="relative w-full h-[320px] flex items-center justify-center">
-            
-            {/* Nav Buttons */}
-            <button 
-              onClick={handlePrev}
-              className="absolute left-0 md:left-12 z-20 w-12 h-12 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-lg flex items-center justify-center hover:bg-brand-yellow hover:text-brand-black transition-colors"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <button 
-              onClick={handleNext}
-              className="absolute right-0 md:right-12 z-20 w-12 h-12 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-lg flex items-center justify-center hover:bg-brand-yellow hover:text-brand-black transition-colors"
-            >
-              <ChevronRight className="w-6 h-6" />
-            </button>
-
-            {/* Carousel Items */}
-            <div className="relative w-full max-w-3xl h-full flex items-center justify-center pointer-events-none">
-              {visualTeam.map((member, idx) => {
-                const offset = ((idx - activeIndex + visualTeam.length + Math.floor(visualTeam.length / 2)) % visualTeam.length) - Math.floor(visualTeam.length / 2);
-                
-                const isActive = offset === 0;
-                
-                let translateX = 0;
-                let scale = 1;
-                let opacity = 1;
-
-                if (offset === -1) {
-                    translateX = -180;
-                    scale = 0.85;
-                    opacity = 0.6;
-                } else if (offset === 1) {
-                    translateX = 180;
-                    scale = 0.85;
-                    opacity = 0.6;
-                } else if (offset === 0) {
-                    translateX = 0;
-                    scale = 1.15;
-                    opacity = 1;
-                } else if (offset === -2) {
-                    translateX = -300;
-                    scale = 0.6;
-                    opacity = 0;
-                } else {
-                    translateX = 300;
-                    scale = 0.6;
-                    opacity = 0;
-                }
-
-                // Adjust tight spacing on mobile
-                const isMobile = window.innerWidth < 768;
-                if (isMobile) {
-                   translateX = translateX * 0.6; 
-                }
-
-                return (
-                  <div 
-                    key={member.id}
-                    className="absolute pointer-events-auto transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] flex flex-col items-center justify-center p-6 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-3xl shadow-xl w-56 md:w-64"
-                    style={{ 
-                      transform: `translateX(${translateX}px) scale(${scale})`, 
-                      opacity, 
-                      zIndex: isActive ? 10 : 5,
-                      boxShadow: isActive ? '0 25px 50px -12px rgba(0, 0, 0, 0.25)' : 'none'
-                    }}
-                    onClick={() => setActiveIndex(idx)}
-                  >
-                    <div className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold mb-4 border-4 bg-[var(--bg-secondary)] shadow-inner ${
-                      member.color === 'text-brand-yellow' ? 'border-brand-yellow/30 text-brand-yellow' : 
-                      member.color === 'text-blue-500' ? 'border-blue-500/30 text-blue-500' : 
-                      'border-emerald-500/30 text-emerald-500'
-                    }`}>
-                      {member.avatar}
-                    </div>
-                    <h4 className="text-xl font-bold text-center leading-tight truncate w-full">{member.name}</h4>
-                    <p className={`text-sm mt-1 font-medium ${member.color}`}>
-                      {member.role}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          {/* Dynamic Team Carousel */}
+          {renderCarousel()}
         </div>
       </section>
 

@@ -9,7 +9,7 @@ const pool = require('../config/db');
 async function logAudit(userId, actionDetail, ipAddress) {
   try {
     await pool.query(
-      'INSERT INTO audit_logs (user_id, action, ip_address) VALUES (?, ?, ?)',
+      'INSERT INTO audit_logs (user_id, action_detail, ip_address) VALUES (?, ?, ?)',
       [userId || null, actionDetail, ipAddress || null]
     );
   } catch (error) {

@@ -7,8 +7,8 @@ exports.getMetrics = async (req, res) => {
     const [workspaceRows] = await pool.query('SELECT COUNT(*) as count FROM workspaces');
     const totalWorkspaces = workspaceRows[0].count;
 
-    // Total Users
-    const [userRows] = await pool.query('SELECT COUNT(*) as count FROM users');
+    // Total Users (excluding administrators)
+    const [userRows] = await pool.query("SELECT COUNT(*) as count FROM users WHERE role NOT IN ('Admin', 'Administrator')");
     const totalUsers = userRows[0].count;
 
     // Total API Credits
@@ -19,7 +19,7 @@ exports.getMetrics = async (req, res) => {
     const [activeSessionRows] = await pool.query(`
       SELECT COUNT(DISTINCT user_id) as count 
       FROM audit_logs 
-      WHERE action = 'Log Masuk (Login)' AND created_at >= NOW() - INTERVAL 1 DAY
+      WHERE action_detail = 'Log Masuk (Login)' AND timestamp >= NOW() - INTERVAL 1 DAY
     `);
     const activeSessions = activeSessionRows[0].count;
 
@@ -42,6 +42,7 @@ exports.getUsers = async (req, res) => {
       SELECT u.id, u.name, u.email, u.role, u.status, u.created_at, w.name as workspace_name
       FROM users u
       LEFT JOIN workspaces w ON u.workspace_id = w.id
+      WHERE u.role NOT IN ('Admin', 'Administrator')
       ORDER BY u.created_at DESC
     `;
     const [rows] = await pool.query(query);
@@ -131,18 +132,18 @@ exports.getAuditLogs = async (req, res) => {
     const { search } = req.query;
 
     let query = `
-      SELECT a.id, a.action, a.ip_address, a.created_at, u.email as user_email
+      SELECT a.id, a.action_detail as action, a.ip_address, a.timestamp as created_at, u.email as user_email
       FROM audit_logs a
       LEFT JOIN users u ON a.user_id = u.id
     `;
     const params = [];
 
     if (search) {
-      query += ` WHERE u.email LIKE ? OR a.action LIKE ?`;
+      query += ` WHERE u.email LIKE ? OR a.action_detail LIKE ?`;
       params.push(`%${search}%`, `%${search}%`);
     }
 
-    query += ` ORDER BY a.created_at DESC LIMIT 100`;
+    query += ` ORDER BY a.timestamp DESC LIMIT 100`;
 
     const [rows] = await pool.query(query, params);
     res.json(rows);

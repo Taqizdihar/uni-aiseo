@@ -4,7 +4,7 @@ exports.getTeamMembers = async (req, res) => {
   try {
     const workspaceId = req.user.workspace_id;
     const [rows] = await pool.query(
-      'SELECT id, name, email, role, status, created_at FROM Users WHERE workspace_id = ?',
+      'SELECT id, name, email, role, status, profile_picture, created_at FROM Users WHERE workspace_id = ?',
       [workspaceId]
     );
     res.json(rows);

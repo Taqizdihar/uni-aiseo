@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
+import { Link } from "react-router-dom";
 import {
   LineChart,
   Line,
@@ -21,31 +22,34 @@ import {
   Target,
   CheckCircle2,
   CircleDashed,
+  ExternalLink,
 } from "lucide-react";
 import api from '../utils/api';
 
-const performanceData = [
-  { day: "1", score: 45 },
-  { day: "5", score: 52 },
-  { day: "10", score: 48 },
-  { day: "15", score: 61 },
-  { day: "20", score: 59 },
-  { day: "25", score: 75 },
-  { day: "30", score: 82 },
-];
+interface OptData {
+  name: string;
+  value: number;
+  color: string;
+}
 
-const keywordData = [
-  { week: "Minggu 1", analyzed: 400, generated: 240 },
-  { week: "Minggu 2", analyzed: 300, generated: 139 },
-  { week: "Minggu 3", analyzed: 200, generated: 980 },
-  { week: "Minggu 4", analyzed: 278, generated: 390 },
-];
+interface PerfData {
+  day: string;
+  score: number;
+}
 
-const optimizationData = [
-  { name: "Dioptimalkan", value: 65, color: "#fad02c" },
-  { name: "Perlu Perbaikan", value: 25, color: "#e0b820" },
-  { name: "Kritis", value: 10, color: "#ff4444" },
-];
+interface KwData {
+  week: string;
+  generated: number;
+}
+
+interface DashboardMetrics {
+  totalProjects: number;
+  totalTeam: number;
+  avgSeoScore: number;
+  optimizationData: OptData[];
+  performanceData: PerfData[];
+  keywordData: KwData[];
+}
 
 export default function Dashboard({
   mockUser,
@@ -58,7 +62,28 @@ export default function Dashboard({
   } | null;
 }) {
   const role = mockUser?.role || "manager";
-  const [metrics, setMetrics] = useState({ totalProjects: 0, totalTeam: 0, avgSeoScore: 0 });
+  const [metrics, setMetrics] = useState<DashboardMetrics>({
+    totalProjects: 0,
+    totalTeam: 0,
+    avgSeoScore: 0,
+    optimizationData: [
+      { name: "Dioptimalkan", value: 0, color: "#fad02c" },
+      { name: "Perlu Perbaikan", value: 0, color: "#e0b820" },
+      { name: "Kritis", value: 0, color: "#ff4444" },
+    ],
+    performanceData: [
+      { day: "W1", score: 0 },
+      { day: "W2", score: 0 },
+      { day: "W3", score: 0 },
+      { day: "W4", score: 0 },
+    ],
+    keywordData: [
+      { week: "Minggu 1", generated: 0 },
+      { week: "Minggu 2", generated: 0 },
+      { week: "Minggu 3", generated: 0 },
+      { week: "Minggu 4", generated: 0 },
+    ],
+  });
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
   useEffect(() => {
@@ -181,6 +206,9 @@ export default function Dashboard({
 
   const tasksList = assignedTasks[role as keyof typeof assignedTasks];
 
+  // Compute total for donut center
+  const optTotal = metrics.optimizationData.reduce((acc, d) => acc + d.value, 0);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-end mb-6">
@@ -244,7 +272,7 @@ export default function Dashboard({
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={performanceData}>
+                <LineChart data={metrics.performanceData}>
                   <CartesianGrid
                     strokeDasharray="3 3"
                     stroke="var(--border-color)"
@@ -301,7 +329,7 @@ export default function Dashboard({
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={optimizationData}
+                      data={metrics.optimizationData}
                       cx="50%"
                       cy="50%"
                       innerRadius={60}
@@ -310,7 +338,7 @@ export default function Dashboard({
                       dataKey="value"
                       stroke="none"
                     >
-                      {optimizationData.map((entry, index) => (
+                      {metrics.optimizationData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -325,14 +353,14 @@ export default function Dashboard({
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-3xl font-bold">100%</span>
+                  <span className="text-3xl font-bold">{optTotal > 0 ? '100%' : '0%'}</span>
                   <span className="text-xs text-[var(--text-secondary)]">
                     Dianalisis
                   </span>
                 </div>
               </div>
               <div className="w-full space-y-2 mt-auto">
-                {optimizationData.map((item, idx) => (
+                {metrics.optimizationData.map((item, idx) => (
                   <div
                     key={idx}
                     className="flex justify-between items-center text-sm"
@@ -400,7 +428,7 @@ export default function Dashboard({
           className={`bg-[var(--bg-primary)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm ${role === "manager" ? "lg:col-span-2" : "lg:col-span-3"}`}
         >
           <h3 className="text-lg font-semibold mb-6">
-            Keywords Dianalisis vs Dihasilkan
+            Keywords Dihasilkan per Minggu
           </h3>
           <div className="h-[300px] w-full">
             {metrics.totalProjects === 0 ? (
@@ -410,7 +438,7 @@ export default function Dashboard({
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={keywordData}
+                  data={metrics.keywordData}
                   margin={{ top: 20, right: 0, left: -20, bottom: 0 }}
                 >
                   <CartesianGrid
@@ -444,19 +472,11 @@ export default function Dashboard({
                     wrapperStyle={{ paddingTop: "20px" }}
                   />
                   <Bar
-                    dataKey="analyzed"
-                    name="Dianalisis"
+                    dataKey="generated"
+                    name="Dihasilkan"
                     fill="#fad02c"
                     radius={[4, 4, 0, 0]}
                     maxBarSize={50}
-                  />
-                  <Bar
-                    dataKey="generated"
-                    name="Dihasilkan"
-                    fill="#222222"
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={50}
-                    className="dark:fill-[#555]"
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -472,9 +492,18 @@ export default function Dashboard({
             transition={{ delay: 0.6 }}
             className="bg-[var(--bg-primary)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm lg:col-span-1 flex flex-col"
           >
-            <h3 className="text-lg font-semibold mb-6">
-              Aktivitas Tim Terbaru
-            </h3>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold">
+                Aktivitas Tim Terbaru
+              </h3>
+              <Link
+                to="/workspace/audit-log"
+                className="text-xs font-semibold text-brand-yellow hover:underline flex items-center gap-1"
+              >
+                Log Audit Workspace
+                <ExternalLink className="w-3.5 h-3.5" />
+              </Link>
+            </div>
             <div className="flex-1 overflow-y-auto pr-2 space-y-4">
               {recentActivity.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-[var(--text-secondary)]">

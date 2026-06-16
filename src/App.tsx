@@ -30,6 +30,7 @@ import WorkspaceManager from "./components/WorkspaceManager";
 import TeamManagement from "./components/TeamManagement";
 import TaskBoard from "./components/TaskBoard";
 import ContentApproval from "./components/ContentApproval";
+import WorkspaceAuditLog from "./components/WorkspaceAuditLog";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
@@ -236,6 +237,7 @@ export default function App() {
               element={<ProtectedRoute user={mockUser} allowedRoles={['manager']}><TeamManagement mockUser={mockUser} /></ProtectedRoute>}
             />
             <Route path="/workspace/faqs" element={<ProtectedRoute user={mockUser} allowedRoles={['manager', 'analyst', 'writer']}><FAQViewer /></ProtectedRoute>} />
+            <Route path="/workspace/audit-log" element={<ProtectedRoute user={mockUser} allowedRoles={['manager']}><WorkspaceAuditLog /></ProtectedRoute>} />
 
             <Route
               path="/profile"
