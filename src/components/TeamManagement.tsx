@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, UserPlus, Trash2, Send, CheckCircle2, ShieldBan, ShieldAlert, ChevronLeft, ChevronRight, X, Loader2 } from 'lucide-react';
-import api from '../utils/api';
+import api, { API_SERVER } from '../utils/api';
 
 interface TeamMember {
   id: string;
@@ -18,7 +18,7 @@ interface VisualMember {
   color: string;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE = API_SERVER;
 
 function getRoleColor(role: string): string {
   if (role === 'SEO Manager') return 'text-brand-yellow';

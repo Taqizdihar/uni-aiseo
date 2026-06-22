@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { API_SERVER } from "../utils/api";
 import { motion, AnimatePresence } from "motion/react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
@@ -66,7 +67,7 @@ export default function Workspace({
   useEffect(() => {
     const fetchNotifs = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/notifications', {
+        const res = await fetch(`${API_SERVER}/api/notifications`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
         if (res.ok) {
@@ -82,7 +83,7 @@ export default function Workspace({
 
   const markAllRead = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/notifications/read-all', {
+      const res = await fetch(`${API_SERVER}/api/notifications/read-all`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });

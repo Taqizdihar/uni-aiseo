@@ -1,4 +1,5 @@
-const BASE_URL = 'http://localhost:5000/api';
+export const API_SERVER = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const BASE_URL = `${API_SERVER}/api`;
 
 const api = {
   get: async (url: string) => {

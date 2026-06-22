@@ -12,7 +12,7 @@ import {
   Building,
   X,
 } from "lucide-react";
-import api from "../utils/api";
+import api, { API_SERVER } from "../utils/api";
 
 interface UserProfileProps {
   mockUser: {
@@ -52,8 +52,8 @@ export default function UserProfile({
       if (data.name) setName(data.name);
       if (data.workspace_name) setWorkspaceName(data.workspace_name);
       
-      const fullPicUrl = data.profile_picture ? `http://localhost:5000${data.profile_picture}` : null;
-      const fullBgUrl = data.background_image ? `http://localhost:5000${data.background_image}` : null;
+      const fullPicUrl = data.profile_picture ? `${API_SERVER}${data.profile_picture}` : null;
+      const fullBgUrl = data.background_image ? `${API_SERVER}${data.background_image}` : null;
       
       if (fullPicUrl) setProfilePicUrl(fullPicUrl);
       if (fullBgUrl) setWorkspaceBgUrl(fullBgUrl);
@@ -77,7 +77,7 @@ export default function UserProfile({
     }
 
     try {
-      const res = await fetch(`http://localhost:5000/api${endpoint}`, {
+      const res = await fetch(`${API_SERVER}/api${endpoint}`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -87,7 +87,7 @@ export default function UserProfile({
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
       if (endpoint === '/users/profile') {
-        const fullUrl = `http://localhost:5000${data.profile_picture}`;
+        const fullUrl = `${API_SERVER}${data.profile_picture}`;
         setProfilePicUrl(fullUrl);
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
@@ -102,7 +102,7 @@ export default function UserProfile({
           }));
         }
       } else {
-        const fullUrl = `http://localhost:5000${data.background_image}`;
+        const fullUrl = `${API_SERVER}${data.background_image}`;
         setWorkspaceBgUrl(fullUrl);
         const storedUser = localStorage.getItem('user');
         if (storedUser) {

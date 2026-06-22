@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { API_SERVER } from "./utils/api";
 import { AnimatePresence } from "motion/react";
 import {
   Routes,
@@ -70,8 +71,8 @@ export default function App() {
           role: roleMap[userData.role] || userData.role,
           workspaceName: userData.workspace_name,
           workspace_id: userData.workspace_id,
-          profilePicture: userData.profile_picture ? `http://localhost:5000${userData.profile_picture}` : null,
-          workspaceBgUrl: userData.background_image ? `http://localhost:5000${userData.background_image}` : null,
+          profilePicture: userData.profile_picture ? `${API_SERVER}${userData.profile_picture}` : null,
+          workspaceBgUrl: userData.background_image ? `${API_SERVER}${userData.background_image}` : null,
         });
       } catch (e) {
         // Corrupted data, clear it

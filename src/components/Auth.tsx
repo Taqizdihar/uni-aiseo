@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { AppState } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Lock, User, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
+import { API_SERVER } from '../utils/api';
 
-const API_BASE_URL = 'http://localhost:5000/api/auth';
+const API_BASE_URL = `${API_SERVER}/api/auth`;
 
 interface AuthProps {
   view: 'login' | 'register';
@@ -115,8 +116,8 @@ export default function Auth({ view, navigate, onSubmit }: AuthProps) {
           workspaceName: loginData.user.workspace_name,
           workspace_id: loginData.user.workspace_id,
           token: loginData.token,
-          profilePicture: loginData.user.profile_picture ? `http://localhost:5000${loginData.user.profile_picture}` : null,
-          workspaceBgUrl: loginData.user.background_image ? `http://localhost:5000${loginData.user.background_image}` : null,
+          profilePicture: loginData.user.profile_picture ? `${API_SERVER}${loginData.user.profile_picture}` : null,
+          workspaceBgUrl: loginData.user.background_image ? `${API_SERVER}${loginData.user.background_image}` : null,
         });
       }
     } catch (error) {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UploadCloud, FileImage, Sparkles, CheckCircle, AlertTriangle, ArrowRight, Save, Link2, AlertCircle, Loader2 } from 'lucide-react';
-import api from '../utils/api';
+import api, { API_SERVER } from '../utils/api';
 
 interface AnalysisResult {
   image_url: string;
@@ -83,7 +83,7 @@ export default function AIVisualAnalyzer({ setIsLoading }: { setIsLoading: (val:
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/visual/analyze', {
+      const res = await fetch(`${API_SERVER}/api/visual/analyze`, {
         method: 'POST',
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),

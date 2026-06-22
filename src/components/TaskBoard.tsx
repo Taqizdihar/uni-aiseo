@@ -17,7 +17,7 @@ import {
   Loader2,
   ChevronDown,
 } from "lucide-react";
-import api from '../utils/api';
+import api, { API_SERVER } from '../utils/api';
 
 interface TaskData {
   id: number;
@@ -398,7 +398,7 @@ export default function TaskBoard({
                         )}
                         {task.visual_image && (
                           <div className="mb-3 w-full h-32 rounded-lg overflow-hidden border border-[var(--border-color)]">
-                            <img src={`http://localhost:5000${task.visual_image}`} alt="Visual Preview" className="w-full h-full object-cover" />
+                            <img src={`${API_SERVER}${task.visual_image}`} alt="Visual Preview" className="w-full h-full object-cover" />
                           </div>
                         )}
                         <p className="text-xs text-[var(--text-secondary)] mb-4 line-clamp-2 leading-relaxed">
@@ -438,7 +438,7 @@ export default function TaskBoard({
                             {task.analyst_name && (
                               <div className="w-6 h-6 rounded-full border-2 border-[var(--bg-primary)] bg-blue-500/20 text-blue-500 flex items-center justify-center text-[10px] font-bold overflow-hidden" title={`Analyst: ${task.analyst_name}`}>
                                 {task.analyst_profile ? (
-                                  <img src={`http://localhost:5000${task.analyst_profile}`} alt={task.analyst_name} className="w-full h-full object-cover" />
+                                  <img src={`${API_SERVER}${task.analyst_profile}`} alt={task.analyst_name} className="w-full h-full object-cover" />
                                 ) : (
                                   task.analyst_name.charAt(0).toUpperCase()
                                 )}
@@ -447,7 +447,7 @@ export default function TaskBoard({
                             {task.writer_name && (
                               <div className="w-6 h-6 rounded-full border-2 border-[var(--bg-primary)] bg-emerald-500/20 text-emerald-500 flex items-center justify-center text-[10px] font-bold overflow-hidden" title={`Writer: ${task.writer_name}`}>
                                 {task.writer_profile ? (
-                                  <img src={`http://localhost:5000${task.writer_profile}`} alt={task.writer_name} className="w-full h-full object-cover" />
+                                  <img src={`${API_SERVER}${task.writer_profile}`} alt={task.writer_name} className="w-full h-full object-cover" />
                                 ) : (
                                   task.writer_name.charAt(0).toUpperCase()
                                 )}
@@ -550,7 +550,7 @@ export default function TaskBoard({
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-full border-2 border-[var(--bg-primary)] bg-blue-500/20 text-blue-500 flex items-center justify-center text-xs font-bold overflow-hidden">
                           {selectedTask.analyst_profile ? (
-                            <img src={`http://localhost:5000${selectedTask.analyst_profile}`} alt={selectedTask.analyst_name || "Analyst"} className="w-full h-full object-cover" />
+                            <img src={`${API_SERVER}${selectedTask.analyst_profile}`} alt={selectedTask.analyst_name || "Analyst"} className="w-full h-full object-cover" />
                           ) : (
                             selectedTask.analyst_name ? selectedTask.analyst_name.charAt(0).toUpperCase() : "?"
                           )}
@@ -563,7 +563,7 @@ export default function TaskBoard({
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-full border-2 border-[var(--bg-primary)] bg-emerald-500/20 text-emerald-500 flex items-center justify-center text-xs font-bold overflow-hidden">
                           {selectedTask.writer_profile ? (
-                            <img src={`http://localhost:5000${selectedTask.writer_profile}`} alt={selectedTask.writer_name || "Writer"} className="w-full h-full object-cover" />
+                            <img src={`${API_SERVER}${selectedTask.writer_profile}`} alt={selectedTask.writer_name || "Writer"} className="w-full h-full object-cover" />
                           ) : (
                             selectedTask.writer_name ? selectedTask.writer_name.charAt(0).toUpperCase() : "?"
                           )}
