@@ -5,6 +5,7 @@ import api, { API_SERVER } from '../utils/api';
 
 interface TeamMember {
   id: string;
+  name: string;
   email: string;
   role: string;
   status: 'Active' | 'Pending';
@@ -46,34 +47,36 @@ export default function TeamManagement({ mockUser }: { mockUser?: { role: string
 
   const [activeIndex, setActiveIndex] = useState(0);
 
-  useEffect(() => {
-    const fetchTeam = async () => {
-      try {
-        const response = await api.get('/users/team');
-        const data = response.data;
-        
-        setTeam(data.map((user: any) => ({
-          id: user.id.toString(),
-          email: user.email,
-          role: user.role,
-          status: user.status === 'Aktif' ? 'Active' : 'Pending'
-        })));
+  const fetchTeam = async () => {
+    try {
+      const response = await api.get('/users/team');
+      const data = response.data;
+      
+      setTeam(data.map((user: any) => ({
+        id: user.id.toString(),
+        name: user.name || 'Menunggu Pendaftaran',
+        email: user.email,
+        role: user.role,
+        status: user.status === 'Aktif' ? 'Active' : 'Pending'
+      })));
 
-        // Build visual team from real data
-        const visual: VisualMember[] = data.map((user: any) => ({
-          id: user.id.toString(),
-          name: user.name,
-          role: user.role,
-          profile_picture: user.profile_picture || null,
-          color: getRoleColor(user.role),
-        }));
-        setVisualTeam(visual);
-      } catch (error) {
-        console.error('Error fetching team:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      // Build visual team from real data
+      const visual: VisualMember[] = data.map((user: any) => ({
+        id: user.id.toString(),
+        name: user.name,
+        role: user.role,
+        profile_picture: user.profile_picture || null,
+        color: getRoleColor(user.role),
+      }));
+      setVisualTeam(visual);
+    } catch (error) {
+      console.error('Error fetching team:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchTeam();
   }, []);
 
@@ -94,16 +97,29 @@ export default function TeamManagement({ mockUser }: { mockUser?: { role: string
         role: inviteRole,
       });
 
-      // Add the new pending user to the table immediately
+      // Add the new pending user to both table and carousel immediately
       const newUser = response.data.user;
-      setTeam([
-        ...team,
-        { id: newUser.id.toString(), email: newUser.email, role: newUser.role, status: 'Pending' }
+      setTeam(prev => [
+        ...prev,
+        { id: newUser.id.toString(), name: 'Menunggu Pendaftaran', email: newUser.email, role: newUser.role, status: 'Pending' }
+      ]);
+      setVisualTeam(prev => [
+        ...prev,
+        {
+          id: newUser.id.toString(),
+          name: 'Menunggu Pendaftaran',
+          role: newUser.role,
+          profile_picture: null,
+          color: getRoleColor(newUser.role),
+        }
       ]);
 
       setInviteEmail('');
       setShowToast('invite');
       setTimeout(() => setShowToast(null), 3000);
+
+      // Re-fetch to ensure full consistency with server
+      fetchTeam();
     } catch (error: any) {
       const message = error?.response?.data?.message || 'Gagal mengirim undangan.';
       alert(message);

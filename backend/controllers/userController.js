@@ -91,7 +91,8 @@ exports.updateProfile = async (req, res) => {
       res.json({ message: 'Tidak ada perubahan.' });
     }
   } catch (error) {
-    console.error('Error updating profile:', error);
-    res.status(500).json({ message: 'Terjadi kesalahan server.' });
+    console.error('Error updating profile:', error?.message || error);
+    console.error('Stack:', error?.stack);
+    res.status(500).json({ message: 'Terjadi kesalahan server saat memperbarui profil. Silakan coba lagi.' });
   }
 };

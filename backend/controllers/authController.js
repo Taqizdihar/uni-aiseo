@@ -147,8 +147,13 @@ const login = async (req, res) => {
       return res.status(403).json({ message: 'Akun Anda tidak aktif. Hubungi administrator.' });
     }
 
-    // Compare password
+    // Compare password (with performance timing for cloud diagnostics)
+    const bcryptStart = Date.now();
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    const bcryptMs = Date.now() - bcryptStart;
+    if (bcryptMs > 500) {
+      console.warn(`⚠️ bcrypt.compare took ${bcryptMs}ms — consider reducing salt rounds or upgrading server tier.`);
+    }
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Email atau password salah.' });
     }
@@ -166,8 +171,8 @@ const login = async (req, res) => {
       expiresIn: '24h',
     });
 
-    // Audit log
-    await logAudit(user.id, 'Log Masuk (Login)', req.ip);
+    // Audit log — fire-and-forget to avoid blocking login response
+    logAudit(user.id, 'Log Masuk (Login)', req.ip).catch(err => console.error('Audit log error:', err));
 
     return res.status(200).json({
       message: 'Login berhasil!',
