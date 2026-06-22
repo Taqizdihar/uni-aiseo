@@ -12,5 +12,6 @@ router.post('/', authorizeRoles('SEO Manager'), taskController.createTask);
 router.put('/:id/status', authorizeRoles('SEO Manager', 'SEO Analyst', 'Content Writer'), taskController.updateTaskStatus);
 router.delete('/:id', authorizeRoles('SEO Manager'), taskController.deleteTask);
 router.get('/archive', authorizeRoles('SEO Manager', 'Administrator', 'admin'), taskController.getArchive);
+router.get('/stats', authorizeRoles('SEO Manager', 'SEO Analyst', 'Content Writer', 'Administrator', 'admin'), taskController.getDashboardStats);
 
 module.exports = router;

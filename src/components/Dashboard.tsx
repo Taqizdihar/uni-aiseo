@@ -62,6 +62,14 @@ export default function Dashboard({
   } | null;
 }) {
   const role = mockUser?.role || "manager";
+  
+  const [taskStats, setTaskStats] = useState({
+    total: 0,
+    todo: 0,
+    inProgress: 0,
+    waitingApproval: 0,
+    done: 0,
+  });
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     totalProjects: 0,
     totalTeam: 0,
@@ -88,84 +96,92 @@ export default function Dashboard({
 
   useEffect(() => {
     const fetchDashboard = async () => {
-      try {
-        const res = await api.get('/workspace/dashboard');
-        setMetrics(res.data);
-      } catch (error) {
-        console.error('Error fetching dashboard metrics', error);
+      if (role === 'manager') {
+        try {
+          const res = await api.get('/workspace/dashboard');
+          setMetrics(res.data);
+        } catch (error) {
+          console.error('Error fetching dashboard metrics', error);
+        }
       }
       try {
-        const res = await api.get('/notifications');
-        setRecentActivity(res.data);
+        const statsRes = await api.get('/tasks/stats');
+        setTaskStats(statsRes.data || { total: 0, todo: 0, inProgress: 0, waitingApproval: 0, done: 0 });
       } catch (error) {
-        console.error('Error fetching recent activity', error);
+        console.error('Error fetching task stats', error);
+      }
+      if (role === 'manager') {
+        try {
+          const res = await api.get('/notifications');
+          setRecentActivity(res.data);
+        } catch (error) {
+          console.error('Error fetching recent activity', error);
+        }
       }
     };
     fetchDashboard();
-  }, []);
+  }, [role]);
 
   const cards =
     {
       manager: [
         {
           title: "Total Proyek Tim",
-          value: metrics.totalProjects.toString(),
+          value: taskStats.total.toString(),
           icon: <Activity className="w-5 h-5 text-[var(--text-secondary)]" />,
-          change: "Total tugas",
+          change: "Keseluruhan tugas",
         },
         {
-          title: "Total Anggota Tim",
-          value: metrics.totalTeam.toString(),
-          icon: <Zap className="w-5 h-5 text-[var(--text-secondary)]" />,
-          change: "Aktif",
+          title: "Proyek Dalam Proses",
+          value: taskStats.inProgress.toString(),
+          icon: <CircleDashed className="w-5 h-5 text-[var(--text-secondary)]" />,
+          change: "Sedang dikerjakan",
         },
         {
-          title: "Rata-rata Skor SEO Tim",
-          value: `${metrics.avgSeoScore}/100`,
-          icon: <Target className="w-5 h-5 text-[var(--text-secondary)]" />,
-          change: "Skor konten gabungan",
+          title: "Proyek Selesai",
+          value: taskStats.done.toString(),
+          icon: <CheckCircle2 className="w-5 h-5 text-[var(--text-secondary)]" />,
+          change: "Telah disetujui",
         },
       ],
       analyst: [
         {
-          title: "Keyword Diteliti Minggu Ini",
-          value: "1,245",
-          icon: <Zap className="w-5 h-5 text-[var(--text-secondary)]" />,
-          change: "+12% dari minggu lalu",
-        },
-        {
-          title: "Gambar Dianalisis",
-          value: "38",
+          title: "Total Tugas Analisis",
+          value: taskStats.total.toString(),
           icon: <Activity className="w-5 h-5 text-[var(--text-secondary)]" />,
-          change: "2 tertunda",
+          change: "Tugas ditugaskan",
         },
         {
-          title: "Tingkat Penyelesaian Tugas",
-          value: "92%",
-          icon: <Target className="w-5 h-5 text-[var(--text-secondary)]" />,
-          change: "Sesuai target",
+          title: "Dalam Proses",
+          value: taskStats.inProgress.toString(),
+          icon: <CircleDashed className="w-5 h-5 text-[var(--text-secondary)]" />,
+          change: "Sedang dianalisis",
+        },
+        {
+          title: "Tugas Selesai",
+          value: taskStats.done.toString(),
+          icon: <CheckCircle2 className="w-5 h-5 text-[var(--text-secondary)]" />,
+          change: "Telah selesai",
         },
       ],
       writer: [
         {
-          title: "Artikel Menunggu Optimasi",
-          value: "4",
-          icon: (
-            <CircleDashed className="w-5 h-5 text-[var(--text-secondary)]" />
-          ),
-          change: "Jatuh tempo minggu ini",
-        },
-        {
-          title: "Rata-rata Skor SEO Konten",
-          value: "88/100",
-          icon: <Target className="w-5 h-5 text-[var(--text-secondary)]" />,
-          change: "+2.1% peningkatan",
-        },
-        {
-          title: "Kata Ditulis",
-          value: "12rb",
+          title: "Total Artikel",
+          value: taskStats.total.toString(),
           icon: <Activity className="w-5 h-5 text-[var(--text-secondary)]" />,
-          change: "Bulan ini",
+          change: "Tugas ditugaskan",
+        },
+        {
+          title: "Sedang Ditulis",
+          value: taskStats.inProgress.toString(),
+          icon: <CircleDashed className="w-5 h-5 text-[var(--text-secondary)]" />,
+          change: "Dalam pengerjaan",
+        },
+        {
+          title: "Artikel Selesai",
+          value: taskStats.done.toString(),
+          icon: <CheckCircle2 className="w-5 h-5 text-[var(--text-secondary)]" />,
+          change: "Telah selesai",
         },
       ],
     }[role] ||

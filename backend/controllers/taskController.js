@@ -363,3 +363,51 @@ exports.getDashboardMetrics = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+exports.getDashboardStats = async (req, res) => {
+  try {
+    const workspaceId = req.user.workspace_id;
+    const userId = req.user.id;
+    const userRole = req.user.role; // e.g. 'SEO Manager', 'SEO Analyst', 'Content Writer'
+
+    let query = '';
+    let params = [];
+
+    if (userRole === 'SEO Manager' || userRole === 'Administrator' || userRole === 'admin') {
+      query = 'SELECT status, COUNT(*) as count FROM tasks WHERE workspace_id = ? GROUP BY status';
+      params = [workspaceId];
+    } else if (userRole === 'SEO Analyst') {
+      query = 'SELECT status, COUNT(*) as count FROM tasks WHERE analyst_id = ? GROUP BY status';
+      params = [userId];
+    } else if (userRole === 'Content Writer') {
+      query = 'SELECT status, COUNT(*) as count FROM tasks WHERE writer_id = ? GROUP BY status';
+      params = [userId];
+    } else {
+      return res.status(403).json({ message: 'Role not supported for stats' });
+    }
+
+    const [rows] = await pool.query(query, params);
+
+    // Initialize counts
+    const stats = {
+      total: 0,
+      todo: 0,
+      inProgress: 0,
+      waitingApproval: 0,
+      done: 0,
+    };
+
+    rows.forEach(row => {
+      stats.total += row.count;
+      if (row.status === 'To Do') stats.todo += row.count;
+      else if (row.status === 'In Progress') stats.inProgress += row.count;
+      else if (row.status === 'Waiting Approval') stats.waitingApproval += row.count;
+      else if (row.status === 'Done') stats.done += row.count;
+    });
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
