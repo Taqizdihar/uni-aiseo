@@ -7,25 +7,26 @@ exports.updateProfile = async (req, res) => {
 
     let backgroundImageUrl = null;
     if (req.file) {
-      backgroundImageUrl = `/uploads/${req.file.filename}`;
+      const rawPath = `/uploads/${req.file.filename}`;
+      backgroundImageUrl = rawPath.replace(/\\/g, '/');
     }
 
     if (backgroundImageUrl) {
       if (workspace_name) {
         await pool.query(
-          'UPDATE Workspaces SET name = ?, background_image = ? WHERE id = ?',
+          'UPDATE workspaces SET name = ?, background_image = ? WHERE id = ?',
           [workspace_name, backgroundImageUrl, workspaceId]
         );
       } else {
         await pool.query(
-          'UPDATE Workspaces SET background_image = ? WHERE id = ?',
+          'UPDATE workspaces SET background_image = ? WHERE id = ?',
           [backgroundImageUrl, workspaceId]
         );
       }
       res.json({ message: 'Workspace berhasil diperbarui.', background_image: backgroundImageUrl });
     } else if (workspace_name) {
       await pool.query(
-        'UPDATE Workspaces SET name = ? WHERE id = ?',
+        'UPDATE workspaces SET name = ? WHERE id = ?',
         [workspace_name, workspaceId]
       );
       res.json({ message: 'Workspace berhasil diperbarui.' });

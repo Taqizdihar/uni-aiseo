@@ -76,7 +76,8 @@ Important rules:
     const analysisData = JSON.parse(cleaned);
 
     // Return the analysis along with the saved image URL
-    const imageUrl = `/uploads/${req.file.filename}`;
+    const rawPath = `/uploads/${req.file.filename}`;
+    const imageUrl = rawPath.replace(/\\/g, '/');
 
     res.json({
       image_url: imageUrl,

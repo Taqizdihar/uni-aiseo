@@ -4,7 +4,7 @@ exports.getTeamMembers = async (req, res) => {
   try {
     const workspaceId = req.user.workspace_id;
     const [rows] = await pool.query(
-      'SELECT id, name, email, role, status, profile_picture, created_at FROM Users WHERE workspace_id = ?',
+      'SELECT id, name, email, role, status, profile_picture, created_at FROM users WHERE workspace_id = ?',
       [workspaceId]
     );
     res.json(rows);
@@ -25,7 +25,7 @@ exports.removeUser = async (req, res) => {
     }
 
     const [result] = await pool.query(
-      'DELETE FROM Users WHERE id = ? AND workspace_id = ?',
+      'DELETE FROM users WHERE id = ? AND workspace_id = ?',
       [userIdToRemove, workspaceId]
     );
 
@@ -45,13 +45,23 @@ exports.getProfile = async (req, res) => {
     const userId = req.user.id;
     const [rows] = await pool.query(
       `SELECT u.name, u.email, u.profile_picture, w.name as workspace_name, w.background_image 
-       FROM Users u 
-       JOIN Workspaces w ON u.workspace_id = w.id 
+       FROM users u 
+       JOIN workspaces w ON u.workspace_id = w.id 
        WHERE u.id = ?`,
       [userId]
     );
     if (rows.length === 0) return res.status(404).json({ message: 'User not found' });
-    res.json(rows[0]);
+    
+    // Safely replace any existing backslashes in legacy records with forward slashes
+    const userProfile = rows[0];
+    if (userProfile.profile_picture) {
+      userProfile.profile_picture = userProfile.profile_picture.replace(/\\/g, '/');
+    }
+    if (userProfile.background_image) {
+      userProfile.background_image = userProfile.background_image.replace(/\\/g, '/');
+    }
+
+    res.json(userProfile);
   } catch (error) {
     console.error('Error fetching profile:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -65,25 +75,27 @@ exports.updateProfile = async (req, res) => {
 
     let profilePictureUrl = null;
     if (req.file) {
-      profilePictureUrl = `/uploads/${req.file.filename}`;
+      // Normalize path separator for cloud compatibility
+      const rawPath = `/uploads/${req.file.filename}`;
+      profilePictureUrl = rawPath.replace(/\\/g, '/');
     }
 
     if (profilePictureUrl) {
       if (name) {
         await pool.query(
-          'UPDATE Users SET name = ?, profile_picture = ? WHERE id = ?',
+          'UPDATE users SET name = ?, profile_picture = ? WHERE id = ?',
           [name, profilePictureUrl, userId]
         );
       } else {
         await pool.query(
-          'UPDATE Users SET profile_picture = ? WHERE id = ?',
+          'UPDATE users SET profile_picture = ? WHERE id = ?',
           [profilePictureUrl, userId]
         );
       }
       res.json({ message: 'Profil berhasil diperbarui.', profile_picture: profilePictureUrl });
     } else if (name) {
       await pool.query(
-        'UPDATE Users SET name = ? WHERE id = ?',
+        'UPDATE users SET name = ? WHERE id = ?',
         [name, userId]
       );
       res.json({ message: 'Profil berhasil diperbarui.' });
